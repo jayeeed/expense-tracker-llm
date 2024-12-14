@@ -6,7 +6,7 @@ class Expense(Base):
     __tablename__ = "expenses"
 
     id = Column(Integer, primary_key=True, index=True)
-    log_date = Column(String, index=True)
+    date = Column(String, index=True)
     category = Column(String, index=True)
     amount = Column(Integer, index=True)
     description = Column(String, index=True)

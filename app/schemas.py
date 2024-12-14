@@ -4,15 +4,12 @@ from typing import Optional
 
 
 class ExpenseSchema(BaseModel):
-    log_date: str = Field(
-        default_factory=lambda: datetime.now().date().strftime("%Y-%m-%d"),
-        description="The date of the expense",
+    date: str = Field(
+        default_factory=lambda: datetime.now().date().strftime("%Y-%m-%d")
     )
-    category: str = Field(description="Category of the expense")
-    amount: int = Field(description="Amount spent")
-    description: str | None = Field(
-        default=None, description="Description of the expense"
-    )
+    amount: int
+    category: Optional[str] = None
+    description: Optional[str] = None
 
 
 class ExpenseCreate(ExpenseSchema):
@@ -20,18 +17,10 @@ class ExpenseCreate(ExpenseSchema):
 
 
 class ExpenseQuerySchema(BaseModel):
-    date: Optional[str] = Field(
-        default=None, description="Filter expenses by date in YYYY-MM-DD format"
-    )
-    category: Optional[str] = Field(
-        default=None, description="Filter expenses by category"
-    )
-    amount: Optional[float] = Field(
-        default=None, description="Filter expenses by amount spent"
-    )
-    description: Optional[str] = Field(
-        default=None, description="Filter expenses by description keyword"
-    )
+    date: Optional[str] = None
+    amount: Optional[int] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
 
 
 class Expense(ExpenseSchema):
