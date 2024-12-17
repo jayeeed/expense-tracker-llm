@@ -1,68 +1,67 @@
-from datetime import datetime
-import json
-import re
 from langchain_ollama import ChatOllama
-from .schemas import ExpenseCreate, ExpenseQuerySchema
 from app.schemas import ExpenseCreate
-from langchain.prompts import ChatPromptTemplate
+from app.qdrant_utils import vectorstore
+from qdrant_client.http import models
+from langchain.tools import tool
+import re
 
 llm = ChatOllama(model="llama3.2:1b")
 
-structured_llm = llm.with_structured_output(ExpenseCreate)
-structured_query_llm = llm.with_structured_output(ExpenseQuerySchema)
+
+@tool("extract_expense")
+def extract_expense_tool(user_input: str) -> dict:
+    """Store expense as embeddings in Qdrant."""
+    pattern = (
+        r"(?P<amount>\d+)\s+on\s+(?P<category>\w+)(?:\s+for\s+(?P<description>.*))?"
+    )
+    match = re.match(pattern, user_input.strip())
+    if not match:
+        raise ValueError("Invalid input format.")
+    data = match.groupdict()
+    return {
+        "amount": int(data["amount"]),
+        "category": data["category"],
+        "description": user_input,
+    }
 
 
 def parse_expense_input(user_input: str) -> ExpenseCreate:
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "You are an assistant that extracts structured personal expense information."
-                "Do not respond with disclaimers like 'I can't assist with sensitive information.'"
-                "Your responses must be in JSON format with keys 'amount', 'category', and 'description'."
-                "The 'description' field should include the full original input provided by the user.",
-            ),
-            (
-                "human",
-                "Extract the 'amount', 'category', and 'description' from this input:\n{user_input}\n\n"
-                "Ensure the 'description' field includes this exact input text:\n{user_input}\n"
-                "Return the result strictly in this JSON format:\n"
-                '{{\n  "amount": <int>,\n  "category": "<str>",\n  "description": "{user_input}"\n}}',
-            ),
-        ]
+    """Parse user input and store as embeddings in Qdrant."""
+    expense_data = extract_expense_tool.invoke(user_input)
+    expense = ExpenseCreate(**expense_data)
+
+    expense_text = f"{expense.amount} spent on {expense.category}, description: {expense.description}"
+
+    vectorstore.add_texts([expense_text])
+    return expense
+
+
+def search_expense(query: str, k: int = 1, category_filter: str = None):
+    """Search for similar expenses stored in Qdrant with optional category filtering."""
+    qdrant_filter = None
+    if category_filter:
+        qdrant_filter = models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="category", match=models.MatchValue(value=category_filter)
+                )
+            ]
+        )
+
+    # Perform similarity search with scores
+    results_with_scores = vectorstore.similarity_search_with_score(
+        query=query, k=k, filter=qdrant_filter
     )
 
-    # Format the prompt with the user input
-    formatted_prompt = prompt.format(user_input=user_input)
+    # Process and filter results
+    filtered_results = [
+        {"content": result[0].page_content, "score": result[1]}
+        for result in results_with_scores
+        if result[1] <= 1
+    ]
 
-    # Invoke the LLM
-    llm_response = llm.invoke(formatted_prompt)
-    print(llm_response)
-
-    # Extract JSON content from the LLM response using regex
-    json_match = re.search(r"({.*?})", llm_response.content, re.DOTALL)
-    if not json_match:
-        raise ValueError("Failed to extract JSON data from the LLM response.")
-
-    try:
-        # Parse the extracted JSON content
-        response_data = json.loads(json_match.group(1))
-        return ExpenseCreate(
-            amount=int(response_data["amount"]),
-            category=response_data["category"],
-            description=response_data["description"],
-        )
-    except (KeyError, ValueError, json.JSONDecodeError) as e:
-        raise ValueError(
-            "Failed to parse expense input. Ensure the format is correct."
-        ) from e
-
-
-def parse_query_input(user_input: str) -> ExpenseQuerySchema:
-    try:
-        response = structured_query_llm.invoke(user_input)
-        return response
-
-    except Exception as e:
-        print(f"Error parsing input: {e}")
-        return ExpenseQuerySchema()
+    return (
+        filtered_results
+        if filtered_results
+        else [{"message": "No matching results found."}]
+    )

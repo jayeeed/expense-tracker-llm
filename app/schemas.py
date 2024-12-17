@@ -14,17 +14,3 @@ class ExpenseSchema(BaseModel):
 
 class ExpenseCreate(ExpenseSchema):
     pass
-
-
-class ExpenseQuerySchema(BaseModel):
-    date: Optional[str] = None
-    amount: Optional[int] = None
-    category: Optional[str] = None
-    description: Optional[str] = None
-
-
-class Expense(ExpenseSchema):
-    id: int
-
-    class Config:
-        from_attributes = True
