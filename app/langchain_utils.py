@@ -2,32 +2,18 @@ from langchain_ollama import ChatOllama
 from app.schemas import ExpenseCreate
 from app.qdrant_utils import vectorstore
 from qdrant_client.http import models
-from langchain.tools import tool
-import re
 
 llm = ChatOllama(model="llama3.2:1b")
-
-
-@tool("extract_expense")
-def extract_expense_tool(user_input: str) -> dict:
-    """Store expense as embeddings in Qdrant."""
-    pattern = (
-        r"(?P<amount>\d+)\s+on\s+(?P<category>\w+)(?:\s+for\s+(?P<description>.*))?"
-    )
-    match = re.match(pattern, user_input.strip())
-    if not match:
-        raise ValueError("Invalid input format.")
-    data = match.groupdict()
-    return {
-        "amount": int(data["amount"]),
-        "category": data["category"],
-        "description": user_input,
-    }
+structured_llm = llm.with_structured_output(ExpenseCreate)
 
 
 def parse_expense_input(user_input: str) -> ExpenseCreate:
     """Parse user input and store as embeddings in Qdrant."""
-    expense_data = extract_expense_tool.invoke(user_input)
+
+    expense_data = structured_llm.invoke(user_input)
+    if isinstance(expense_data, ExpenseCreate):
+        expense_data = expense_data.model_dump()  # Convert to dictionary if needed
+
     expense = ExpenseCreate(**expense_data)
 
     expense_text = f"{expense.amount} spent on {expense.category}, description: {expense.description}"
@@ -36,7 +22,7 @@ def parse_expense_input(user_input: str) -> ExpenseCreate:
     return expense
 
 
-def search_expense(query: str, k: int = 1, category_filter: str = None):
+def search_expense(query: str, k: int = 3, category_filter: str = None):
     """Search for similar expenses stored in Qdrant with optional category filtering."""
     qdrant_filter = None
     if category_filter:
