@@ -1,16 +1,28 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
+from typing_extensions import Annotated, TypedDict
 
 
 class ExpenseSchema(BaseModel):
-    date: str = Field(
-        default_factory=lambda: datetime.now().date().strftime("%Y-%m-%d"),
-        description="The date of the expense",
-    )
-    amount: Optional[float] = Field(description="The amount spent")
-    category: Optional[str] = Field(description="The category of the expense")
-    description: Optional[str] = Field(description="A brief description of the expense")
+    # date: str = Field(
+    #     default_factory=lambda: datetime.now().strftime("%Y-%m-%d"),
+    #     description="The date of the expense",
+    # )
+    date: Annotated[str, ..., "Date of the expense. e.g. 2024-12-01"]
+    amount: Annotated[
+        int,
+        ...,
+        "Amount of the expense. e.g. 100, 200, 500, etc. Ignore non-numeric characters.",
+    ]
+    category: Annotated[
+        str, ..., "Type of category for the expense. e.g. Food, Travel, Groceries, etc."
+    ]
+    description: Annotated[
+        Optional[str],
+        ...,
+        "Short summary of the expense e.g. Lunch at Banani.",
+    ]
 
 
 class ExpenseCreate(ExpenseSchema):

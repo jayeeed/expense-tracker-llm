@@ -2,21 +2,56 @@ from langchain_ollama import ChatOllama
 from app.schemas import ExpenseCreate
 from app.qdrant_utils import vectorstore
 from qdrant_client.http import models
+from datetime import datetime
+from langchain_ollama import ChatOllama
 
 llm = ChatOllama(model="llama3.2:1b")
-structured_llm = llm.with_structured_output(ExpenseCreate)
+
+json_schema = {
+    "title": "Expense",
+    "description": "Schema for storing expense data",
+    "type": "object",
+    "properties": {
+        "amount": {
+            "type": "integer",
+            "description": "Amount of the expense. e.g. 100, 200, 500, etc. Ignore non-numeric characters.",
+        },
+        "category": {
+            "type": "string",
+            "description": "Type of category for the expense. e.g. Food, Travel, Groceries, etc.",
+            "default": "General",
+        },
+        "description": {
+            "type": "string",
+            "description": "Short summary of the expense",
+            "default": "No description",
+        },
+    },
+    "required": ["amount", "category"],
+}
 
 
 def parse_expense_input(user_input: str) -> ExpenseCreate:
     """Parse user input and store as embeddings in Qdrant."""
-
+    structured_llm = llm.with_structured_output(json_schema)
     expense_data = structured_llm.invoke(user_input)
-    if isinstance(expense_data, ExpenseCreate):
-        expense_data = expense_data.model_dump()  # Convert to dictionary if needed
 
-    expense = ExpenseCreate(**expense_data)
+    # Strip non-numeric characters from the amount
+    expense_data["amount"] = int(
+        "".join(filter(str.isdigit, str(expense_data["amount"])))
+    )
 
-    expense_text = f"{expense.amount} spent on {expense.category}, description: {expense.description}"
+    expense = ExpenseCreate(
+        date=datetime.now().strftime("%Y-%m-%d"),
+        amount=expense_data.get("amount"),
+        category=expense_data.get("category"),
+        description=expense_data.get("description", "No description"),
+    )
+
+    expense_text = (
+        f"Date: {expense.date}, Amount: {expense.amount}, "
+        f"Category: {expense.category}, Description: {expense.description}"
+    )
 
     vectorstore.add_texts([expense_text])
     return expense
