@@ -1,5 +1,6 @@
 from langchain_ollama import ChatOllama
-from app.schemas import ExpenseCreate
+from app.schemas import ExpenseSchema
+from app.json_schemas import json_schema
 from app.qdrant_utils import vectorstore
 from qdrant_client.http import models
 from datetime import datetime
@@ -7,48 +8,28 @@ from langchain_ollama import ChatOllama
 
 llm = ChatOllama(model="llama3.2:1b")
 
-json_schema = {
-    "title": "ExpenseCreate",
-    "description": "Schema for storing expense data",
-    "type": "object",
-    "properties": {
-        "amount": {
-            "type": "integer",
-            "description": "Amount of the expense. e.g. 100, 200, 500, etc. Ignore non-numeric characters.",
-        },
-        "category": {
-            "type": "string",
-            "description": "Type of category for the expense. e.g. Food, Travel, Groceries, etc.",
-            "default": "General",
-        },
-        "description": {
-            "type": "string",
-            "description": "Short summary of the expense",
-            "default": "No description",
-        },
-    },
-    "required": ["amount", "category"],
-}
 
-
-def parse_expense_input(user_input: str) -> ExpenseCreate:
+def parse_expense_input(user_input: str) -> ExpenseSchema:
     """Parse user input and store as embeddings in Qdrant."""
     structured_llm = llm.with_structured_output(json_schema)
-    print(structured_llm)
+
     expense_data = structured_llm.invoke(user_input)
-    print(expense_data)
 
-    expense = ExpenseCreate(
-        date=datetime.now().strftime("%Y-%m-%d"),
-        amount=expense_data.get("amount"),
-        category=expense_data.get("category"),
-        description=expense_data.get("description", "No description"),
+    if not expense_data.get("date"):
+        expense_data["date"] = datetime.now().strftime("%Y-%m-%d")
+    if not expense_data.get("category"):
+        expense_data["category"] = "General"
+    if not expense_data.get("description"):
+        expense_data["description"] = "No description provided."
+
+    expense = ExpenseSchema(
+        date=expense_data["date"],
+        amount=expense_data["amount"],
+        category=expense_data["category"],
+        description=expense_data["description"],
     )
 
-    expense_text = (
-        f"Date: {expense.date}, Amount: {expense.amount}, "
-        f"Category: {expense.category}, Description: {expense.description}"
-    )
+    expense_text = f"Date: {expense['date']}, Amount: {expense['amount']}, Category: {expense['category']}, Description: {expense['description']}"
 
     vectorstore.add_texts([expense_text])
     return expense
@@ -75,7 +56,7 @@ def search_expense(query: str, k: int = 3, category_filter: str = None):
     filtered_results = [
         {"content": result[0].page_content, "score": result[1]}
         for result in results_with_scores
-        if result[1] <= 1
+        if result[1] < 0.9
     ]
 
     return (
