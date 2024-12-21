@@ -1,14 +1,9 @@
-from pydantic import BaseModel, Field
-from datetime import datetime
+from pydantic import BaseModel
 from typing import Optional
 from typing_extensions import Annotated, TypedDict
 
 
 class ExpenseSchema(BaseModel):
-    # date: str = Field(
-    #     default_factory=lambda: datetime.now().strftime("%Y-%m-%d"),
-    #     description="The date of the expense",
-    # )
     date: Annotated[str, ..., "Date of the expense. e.g. 2024-12-01"]
     amount: Annotated[
         int,
@@ -27,3 +22,6 @@ class ExpenseSchema(BaseModel):
 
 class ExpenseCreate(ExpenseSchema):
     pass
+
+
+tools = [ExpenseCreate]

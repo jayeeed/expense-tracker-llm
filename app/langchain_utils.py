@@ -8,7 +8,7 @@ from langchain_ollama import ChatOllama
 llm = ChatOllama(model="llama3.2:1b")
 
 json_schema = {
-    "title": "Expense",
+    "title": "ExpenseCreate",
     "description": "Schema for storing expense data",
     "type": "object",
     "properties": {
@@ -34,12 +34,9 @@ json_schema = {
 def parse_expense_input(user_input: str) -> ExpenseCreate:
     """Parse user input and store as embeddings in Qdrant."""
     structured_llm = llm.with_structured_output(json_schema)
+    print(structured_llm)
     expense_data = structured_llm.invoke(user_input)
-
-    # Strip non-numeric characters from the amount
-    expense_data["amount"] = int(
-        "".join(filter(str.isdigit, str(expense_data["amount"])))
-    )
+    print(expense_data)
 
     expense = ExpenseCreate(
         date=datetime.now().strftime("%Y-%m-%d"),
