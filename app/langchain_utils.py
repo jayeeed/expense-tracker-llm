@@ -1,12 +1,18 @@
-from langchain_ollama import ChatOllama
+# from langchain_ollama import ChatOllama
+import os
+from langchain_anthropic import ChatAnthropic
 from app.schemas import ExpenseSchema
 from app.json_schemas import json_schema
 from app.qdrant_utils import vectorstore
 from qdrant_client.http import models
 from datetime import datetime
-from langchain_ollama import ChatOllama
 
-llm = ChatOllama(model="llama3.2:1b")
+# llm = ChatOllama(model="llama3.2:1b")
+llm = ChatAnthropic(
+    model="claude-3-5-sonnet-20240620",
+    temperature=0,
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
+)
 
 
 def parse_expense_input(user_input: str) -> ExpenseSchema:
@@ -56,7 +62,7 @@ def search_expense(query: str, k: int = 3, category_filter: str = None):
     filtered_results = [
         {"content": result[0].page_content, "score": result[1]}
         for result in results_with_scores
-        if result[1] < 0.9
+        if result[1] > 0.6
     ]
 
     return (
