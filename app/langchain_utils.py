@@ -1,13 +1,11 @@
-# from langchain_ollama import ChatOllama
 import os
-from langchain_anthropic import ChatAnthropic
-from app.schemas import ExpenseSchema
-from app.json_schemas import json_schema
-from app.qdrant_utils import vectorstore
-from qdrant_client.http import models
 from datetime import datetime
+from langchain_anthropic import ChatAnthropic
+from qdrant_client.http import models
+from app.schemas import ExpenseSchema
+from app.qdrant_utils import vectorstore
+from langsmith import traceable
 
-# llm = ChatOllama(model="llama3.2:1b")
 llm = ChatAnthropic(
     model="claude-3-5-sonnet-20240620",
     temperature=0,
@@ -15,25 +13,15 @@ llm = ChatAnthropic(
 )
 
 
-def parse_expense_input(user_input: str) -> ExpenseSchema:
+@traceable
+def parse_expense_input(user_input: str):
     """Parse user input and store as embeddings in Qdrant."""
-    structured_llm = llm.with_structured_output(json_schema)
+    structured_llm = llm.with_structured_output(ExpenseSchema)
 
     expense_data = structured_llm.invoke(user_input)
 
-    if not expense_data.get("date"):
-        expense_data["date"] = datetime.now().strftime("%Y-%m-%d")
-    if not expense_data.get("category"):
-        expense_data["category"] = "General"
-    if not expense_data.get("description"):
-        expense_data["description"] = "No description provided."
-
-    expense = ExpenseSchema(
-        date=expense_data["date"],
-        amount=expense_data["amount"],
-        category=expense_data["category"],
-        description=expense_data["description"],
-    )
+    expense_data["date"] = datetime.now().strftime("%Y-%m-%d")
+    expense = ExpenseSchema(**expense_data)
 
     expense_text = f"Date: {expense['date']}, Amount: {expense['amount']}, Category: {expense['category']}, Description: {expense['description']}"
 
@@ -41,7 +29,8 @@ def parse_expense_input(user_input: str) -> ExpenseSchema:
     return expense
 
 
-def search_expense(query: str, k: int = 3, category_filter: str = None):
+@traceable
+def search_expense(query: str, k: int = 10, category_filter: str = None):
     """Search for similar expenses stored in Qdrant with optional category filtering."""
     qdrant_filter = None
     if category_filter:
@@ -65,8 +54,20 @@ def search_expense(query: str, k: int = 3, category_filter: str = None):
         if result[1] > 0.6
     ]
 
-    return (
-        filtered_results
-        if filtered_results
-        else [{"message": "No matching results found."}]
-    )
+    # Calculate total amount from filtered results
+    total_amount = 0
+    for result in filtered_results:
+        try:
+            amount_str = result["content"].split("Amount:")[1].split(",")[0].strip()
+            total_amount += float(amount_str)
+        except (IndexError, ValueError):
+            continue
+
+    return {
+        "results": (
+            filtered_results
+            if filtered_results
+            else [{"message": "No matching results found."}]
+        ),
+        "total_amount": total_amount,
+    }
