@@ -1,9 +1,8 @@
 import os
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
 from langchain_qdrant import QdrantVectorStore
+from qdrant_client.models import Distance, VectorParams
 from langchain_ollama import OllamaEmbeddings
-
 
 URL = os.getenv("QDRANT_URL")
 API_KEY = os.getenv("QDRANT_API_KEY")
@@ -13,12 +12,12 @@ client = QdrantClient(url=URL, api_key=API_KEY)
 
 embedding_model = OllamaEmbeddings(model="nomic-embed-text")
 
-vectorstore = QdrantVectorStore(
-    client=client,
-    collection_name=COLLECTION_NAME,
-    embedding=embedding_model,
-    content_payload_key="content",
-)
+# vectorstore = QdrantVectorStore(
+#     client=client,
+#     collection_name=COLLECTION_NAME,
+#     embedding=embedding_model,
+#     content_payload_key="category",
+# )
 
 
 def initialize_qdrant():

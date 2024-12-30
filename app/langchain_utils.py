@@ -2,10 +2,12 @@ import os
 from datetime import datetime
 import uuid
 from langchain_anthropic import ChatAnthropic
-from qdrant_client.http.models import PointStruct, FieldCondition, Filter, MatchValue
+from qdrant_client.http.models import PointStruct
 from app.schemas import ExpenseSchema
-from app.qdrant_utils import vectorstore, embedding_model, client
+from app.qdrant_utils import embedding_model, client
 from langsmith import traceable
+
+COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 
 llm = ChatAnthropic(
     model="claude-3-5-sonnet-20240620",
@@ -35,59 +37,65 @@ def parse_expense_input(user_input: str):
             for key in ["date", "amount", "category", "description"]
         },
     )
-    client.upsert(points=[point], collection_name=vectorstore.collection_name)
+    client.upsert(points=[point], collection_name=COLLECTION_NAME)
 
     return {**expense_data, "vector": point.vector}
 
 
 @traceable
-def search_expense(query: str, k: int = 10, category_filter: str = None):
+def search_expense(query: str):
     """Search for similar expenses stored in Qdrant with optional category filtering."""
-    qdrant_filter = None
-    if category_filter:
-        qdrant_filter = Filter(
-            must=[
-                FieldCondition(key="Category", match=MatchValue(value=category_filter))
-            ]
-        )
 
     # Perform similarity search with scores
-    results_with_scores = vectorstore.similarity_search_with_score(
-        query=query, k=k, filter=qdrant_filter
+    results_with_scores = client.search(
+        query_vector=generate_embedding(query),
+        collection_name=COLLECTION_NAME,
     )
 
     # Process and filter results
     filtered_results = []
     for result in results_with_scores:
-        content = result[0].page_content
-        print(content)
-        score = result[1]
+        if result.score > 0.5:
+            filtered_results.append(result.payload)
 
-        if score < 1:
-            try:
-                # Extract fields from content
-                fields = {
-                    "Date": content.split("Date:")[1].split(",")[0].strip(),
-                    "Amount": int(content.split("Amount:")[1].split(",")[0].strip()),
-                    "Category": content.split("Category:")[1].split(",")[0].strip(),
-                    "Description": content.split("Description:")[1].strip(),
-                }
-                filtered_results.append({"fields": fields, "score": score})
-            except (IndexError, ValueError):
-                continue
+    return filtered_results[0]
 
-    # Calculate total amount from filtered results
-    total_amount = sum(
-        result["fields"]["Amount"]
-        for result in filtered_results
-        if "Amount" in result["fields"]
+
+def decide_user_intent(user_input: str):
+    """
+    Use LLM to determine whether the user's intent is to save a new expense or search for an existing one.
+    """
+    # Define a prompt to guide the LLM's decision-making
+    intent_prompt = (
+        "Determine if the following input describes an expense to save (e.g., a purchase or a transaction) "
+        "or if it describes a search query for existing expenses. Respond with either 'save' or 'search'.\n"
+        f"Input: {user_input}\n"
+        "Output:"
     )
 
-    return {
-        "results": (
-            filtered_results
-            if filtered_results
-            else [{"message": "No matching results found."}]
-        ),
-        "total_amount": total_amount,
-    }
+    # Use the LLM to analyze the intent
+    response = llm.invoke(intent_prompt)
+
+    # Extract the text content from the AIMessage object
+    intent = response.content.strip().lower()
+
+    if intent not in ["save", "search"]:
+        raise ValueError(
+            "Unable to determine user intent. Please try rephrasing your input."
+        )
+
+    return intent
+
+
+def process_user_input(user_input: str):
+    """
+    Process the user's input by determining the intent and executing the appropriate function.
+    """
+    intent = decide_user_intent(user_input)
+
+    if intent == "save":
+        return parse_expense_input(user_input)
+    elif intent == "search":
+        return search_expense(user_input)
+    else:
+        raise ValueError("Unexpected intent result.")
