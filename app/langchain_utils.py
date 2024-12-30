@@ -61,6 +61,7 @@ def search_expense(query: str):
     return filtered_results[0]
 
 
+@traceable
 def decide_user_intent(user_input: str):
     """
     Use LLM to determine whether the user's intent is to save a new expense or search for an existing one.
@@ -87,6 +88,7 @@ def decide_user_intent(user_input: str):
     return intent
 
 
+@traceable
 def process_user_input(user_input: str):
     """
     Process the user's input by determining the intent and executing the appropriate function.
@@ -94,8 +96,12 @@ def process_user_input(user_input: str):
     intent = decide_user_intent(user_input)
 
     if intent == "save":
-        return parse_expense_input(user_input)
+        result = parse_expense_input(user_input)
     elif intent == "search":
-        return search_expense(user_input)
+        result = search_expense(user_input)
     else:
         raise ValueError("Unexpected intent result.")
+
+    result["intent"] = intent
+
+    return result
