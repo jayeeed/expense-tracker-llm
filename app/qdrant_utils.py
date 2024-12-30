@@ -12,8 +12,12 @@ COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 client = QdrantClient(url=URL, api_key=API_KEY)
 
 embedding_model = OllamaEmbeddings(model="nomic-embed-text")
+
 vectorstore = QdrantVectorStore(
-    client=client, collection_name=COLLECTION_NAME, embedding=embedding_model
+    client=client,
+    collection_name=COLLECTION_NAME,
+    embedding=embedding_model,
+    content_payload_key="content",
 )
 
 

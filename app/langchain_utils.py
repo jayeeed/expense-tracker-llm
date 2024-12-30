@@ -1,9 +1,10 @@
 import os
 from datetime import datetime
+import uuid
 from langchain_anthropic import ChatAnthropic
-from qdrant_client.http import models
+from qdrant_client.http.models import PointStruct, FieldCondition, Filter, MatchValue
 from app.schemas import ExpenseSchema
-from app.qdrant_utils import vectorstore
+from app.qdrant_utils import vectorstore, embedding_model, client
 from langsmith import traceable
 
 llm = ChatAnthropic(
@@ -13,20 +14,30 @@ llm = ChatAnthropic(
 )
 
 
+def generate_embedding(user_input: str):
+    response = embedding_model.embed_query(text=user_input)
+    return response
+
+
 @traceable
 def parse_expense_input(user_input: str):
     """Parse user input and store as embeddings in Qdrant."""
-    structured_llm = llm.with_structured_output(ExpenseSchema)
+    expense_data = llm.with_structured_output(ExpenseSchema).invoke(user_input)
+    expense_data.update(
+        {"date": datetime.now().strftime("%Y-%m-%d"), "id": uuid.uuid4().hex}
+    )
 
-    expense_data = structured_llm.invoke(user_input)
+    point = PointStruct(
+        id=expense_data["id"],
+        vector=generate_embedding(user_input),
+        payload={
+            key: expense_data[key]
+            for key in ["date", "amount", "category", "description"]
+        },
+    )
+    client.upsert(points=[point], collection_name=vectorstore.collection_name)
 
-    expense_data["date"] = datetime.now().strftime("%Y-%m-%d")
-    expense = ExpenseSchema(**expense_data)
-
-    expense_text = f"Date: {expense['date']}, Amount: {expense['amount']}, Category: {expense['category']}, Description: {expense['description']}"
-
-    vectorstore.add_texts([expense_text])
-    return expense
+    return {**expense_data, "vector": point.vector}
 
 
 @traceable
@@ -34,11 +45,9 @@ def search_expense(query: str, k: int = 10, category_filter: str = None):
     """Search for similar expenses stored in Qdrant with optional category filtering."""
     qdrant_filter = None
     if category_filter:
-        qdrant_filter = models.Filter(
+        qdrant_filter = Filter(
             must=[
-                models.FieldCondition(
-                    key="category", match=models.MatchValue(value=category_filter)
-                )
+                FieldCondition(key="Category", match=MatchValue(value=category_filter))
             ]
         )
 
@@ -48,20 +57,31 @@ def search_expense(query: str, k: int = 10, category_filter: str = None):
     )
 
     # Process and filter results
-    filtered_results = [
-        {"content": result[0].page_content, "score": result[1]}
-        for result in results_with_scores
-        if result[1] > 0.6
-    ]
+    filtered_results = []
+    for result in results_with_scores:
+        content = result[0].page_content
+        print(content)
+        score = result[1]
+
+        if score < 1:
+            try:
+                # Extract fields from content
+                fields = {
+                    "Date": content.split("Date:")[1].split(",")[0].strip(),
+                    "Amount": int(content.split("Amount:")[1].split(",")[0].strip()),
+                    "Category": content.split("Category:")[1].split(",")[0].strip(),
+                    "Description": content.split("Description:")[1].strip(),
+                }
+                filtered_results.append({"fields": fields, "score": score})
+            except (IndexError, ValueError):
+                continue
 
     # Calculate total amount from filtered results
-    total_amount = 0
-    for result in filtered_results:
-        try:
-            amount_str = result["content"].split("Amount:")[1].split(",")[0].strip()
-            total_amount += float(amount_str)
-        except (IndexError, ValueError):
-            continue
+    total_amount = sum(
+        result["fields"]["Amount"]
+        for result in filtered_results
+        if "Amount" in result["fields"]
+    )
 
     return {
         "results": (
