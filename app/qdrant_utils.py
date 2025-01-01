@@ -1,6 +1,7 @@
 import os
 from qdrant_client import QdrantClient
-from langchain_qdrant import QdrantVectorStore
+
+# from langchain_qdrant import QdrantVectorStore
 from qdrant_client.models import Distance, VectorParams
 from langchain_ollama import OllamaEmbeddings
 
