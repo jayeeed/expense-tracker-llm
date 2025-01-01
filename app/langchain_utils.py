@@ -1,11 +1,13 @@
 import os
-from datetime import datetime
 import uuid
+from datetime import datetime
 from langchain_anthropic import ChatAnthropic
 from qdrant_client.http.models import PointStruct
 from app.schemas import ExpenseSchema
 from app.qdrant_utils import embedding_model, client
+from app.db_utils import save_to_db, get_from_db
 from langsmith import traceable
+from threading import Thread
 
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 
@@ -28,6 +30,7 @@ def parse_expense_input(user_input: str):
     expense_data.update(
         {"date": datetime.now().strftime("%Y-%m-%d"), "id": uuid.uuid4().hex}
     )
+    print("point created: ", expense_data["id"])
 
     point = PointStruct(
         id=expense_data["id"],
@@ -39,11 +42,14 @@ def parse_expense_input(user_input: str):
     )
     client.upsert(points=[point], collection_name=COLLECTION_NAME)
 
+    db_thread = Thread(target=save_to_db, args=(expense_data,))
+    db_thread.start()
+
     return {**expense_data, "vector": point.vector}
 
 
 @traceable
-def search_expense(query: str):
+def search_expense_input(query: str):
     """Search for similar expenses stored in Qdrant with optional category filtering."""
 
     # Perform similarity search with scores
@@ -61,47 +67,49 @@ def search_expense(query: str):
     return filtered_results[0]
 
 
-@traceable
-def decide_user_intent(user_input: str):
+def detect_intent(user_query: str):
+    """Detect the intent of the user query."""
+    prompt = f"""
+    Determine if the following input describes an expense to save (e.g., a purchase or a transaction) or if it describes a search query for existing expenses. Respond with below options:
+    1. Add Expense
+    2. Search Expense
+    3. Unknown
+    Input: "{user_query}"
+    Output:
     """
-    Use LLM to determine whether the user's intent is to save a new expense or search for an existing one.
-    """
-    # Define a prompt to guide the LLM's decision-making
-    intent_prompt = (
-        "Determine if the following input describes an expense to save (e.g., a purchase or a transaction) "
-        "or if it describes a search query for existing expenses. Respond with either 'save' or 'search'.\n"
-        f"Input: {user_input}\n"
-        "Output:"
-    )
-
-    # Use the LLM to analyze the intent
-    response = llm.invoke(intent_prompt)
-
-    # Extract the text content from the AIMessage object
-    intent = response.content.strip().lower()
-
-    if intent not in ["save", "search"]:
-        raise ValueError(
-            "Unable to determine user intent. Please try rephrasing your input."
-        )
-
-    return intent
-
-
-@traceable
-def process_user_input(user_input: str):
-    """
-    Process the user's input by determining the intent and executing the appropriate function.
-    """
-    intent = decide_user_intent(user_input)
-
-    if intent == "save":
-        result = parse_expense_input(user_input)
-    elif intent == "search":
-        result = search_expense(user_input)
+    response = llm.invoke(prompt).content.strip().lower()
+    if "add expense" in response:
+        return "add_expense"
+    elif "search expense" in response:
+        return "search_expense"
     else:
-        raise ValueError("Unexpected intent result.")
+        return "unknown"
 
-    result["intent"] = intent
 
-    return result
+def add_expense(user_query: str):
+    """Wrapper for adding expenses."""
+    return parse_expense_input(user_query)
+
+
+def search_expense(user_query: str):
+    """Wrapper for searching expenses."""
+    return search_expense_input(user_query)
+
+
+# API Mapping
+API_MAPPING = {
+    "add_expense": add_expense,
+    "search_expense": search_expense,
+}
+
+
+def route_request(user_query: str):
+    """Route the user query to the appropriate API based on detected intent."""
+    intent = detect_intent(user_query)
+
+    if intent == "unknown":
+        response = {"response": "Sorry, I couldn't understand your request."}
+    elif intent in API_MAPPING:
+        response = API_MAPPING[intent](user_query)
+
+    return {**response, "intent": intent}
