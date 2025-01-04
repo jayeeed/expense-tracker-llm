@@ -1,20 +1,26 @@
 import sqlite3
 
+
 # Initialize SQLite database
-conn = sqlite3.connect("expenses.db", check_same_thread=False)
-cursor = conn.cursor()
-cursor.execute(
-    """
-    CREATE TABLE IF NOT EXISTS expenses (
-        id TEXT PRIMARY KEY,
-        date TEXT,
-        amount REAL,
-        category TEXT,
-        description TEXT
+def init_db():
+    conn = sqlite3.connect("expenses.db", check_same_thread=False)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS expenses (
+            id TEXT PRIMARY KEY,
+            date TEXT,
+            amount REAL,
+            category TEXT,
+            description TEXT
+        )
+        """
     )
-"""
-)
-conn.commit()
+    conn.commit()
+    return conn
+
+
+conn = init_db()
 
 
 def save_to_db(expense_data):
@@ -24,7 +30,7 @@ def save_to_db(expense_data):
             """
             INSERT INTO expenses (id, date, amount, category, description)
             VALUES (?, ?, ?, ?, ?)
-        """,
+            """,
             (
                 expense_data["id"],
                 expense_data["date"],
@@ -43,7 +49,7 @@ def get_from_db(search_query):
             """
             SELECT * FROM expenses
             WHERE date LIKE ? OR amount LIKE ? OR category LIKE ? OR description LIKE ?
-        """,
+            """,
             (
                 f"%{search_query}%",
                 f"%{search_query}%",
