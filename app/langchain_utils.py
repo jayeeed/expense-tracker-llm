@@ -8,13 +8,20 @@ from app.qdrant_utils import embedding_model, client
 from app.db_utils import save_to_db, get_from_db
 from langsmith import traceable
 from threading import Thread
+from langchain_groq import ChatGroq
 
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
+API_KEY = os.getenv("GROQ_API_KEY")
 
-llm = ChatAnthropic(
-    model="claude-3-5-sonnet-20240620",
-    temperature=0,
-    api_key=os.getenv("ANTHROPIC_API_KEY"),
+# llm = ChatAnthropic(
+#     model="claude-3-5-sonnet-20240620",
+#     temperature=0,
+#     api_key=os.getenv("ANTHROPIC_API_KEY"),
+# )
+
+llm = ChatGroq(
+    api_key=API_KEY,
+    model="llama-3.1-8b-instant",
 )
 
 
@@ -25,7 +32,8 @@ def generate_embedding(user_input: str):
 
 @traceable
 def parse_expense_input(user_input: str):
-    """Parse user input and store as embeddings in Qdrant."""
+    """Parse user input (text or image) and store as embeddings in Qdrant."""
+
     expense_data = llm.with_structured_output(ExpenseSchema).invoke(user_input)
     expense_data.update(
         {"date": datetime.now().strftime("%Y-%m-%d"), "id": uuid.uuid4().hex}

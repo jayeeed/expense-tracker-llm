@@ -4,6 +4,7 @@ from qdrant_client import QdrantClient
 # from langchain_qdrant import QdrantVectorStore
 from qdrant_client.models import Distance, VectorParams
 from langchain_ollama import OllamaEmbeddings
+from langchain_nomic import NomicEmbeddings
 
 URL = os.getenv("QDRANT_URL")
 API_KEY = os.getenv("QDRANT_API_KEY")
@@ -11,7 +12,8 @@ COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 
 client = QdrantClient(url=URL, api_key=API_KEY)
 
-embedding_model = OllamaEmbeddings(model="nomic-embed-text")
+# embedding_model = OllamaEmbeddings(model="nomic-embed-text")
+embedding_model = NomicEmbeddings(model="nomic-embed-text-v1.5")
 
 # vectorstore = QdrantVectorStore(
 #     client=client,
