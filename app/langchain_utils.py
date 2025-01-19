@@ -13,6 +13,7 @@ from langchain_groq import ChatGroq
 from groq import Groq
 from PIL import Image
 import io
+from langchain_core.messages import HumanMessage
 
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 API_KEY = os.getenv("GROQ_API_KEY")
@@ -28,9 +29,9 @@ llm = ChatGroq(
     model="llama-3.3-70b-versatile",
 )
 
-llm_vision = Groq(
+llm_vision = ChatGroq(
     api_key=API_KEY,
-    # model="llama-3.2-90b-vision-preview",
+    model="llama-3.2-90b-vision-preview",
 )
 
 
@@ -40,34 +41,27 @@ def generate_embedding(user_input: str):
 
 
 @traceable
-def parse_expense_input(user_input: str, image):
+def parse_expense_input(user_input: str, image_url):
     """Parse user input (text or image) and store as embeddings in Qdrant."""
-
-    if image:
-        # image = Image.open(io.BytesIO(image_content))
-        # expense_data = llm_vision.with_structured_output(ExpenseSchema).invoke(image)
-        llm_client = Groq()
-        expense_data = llm_client.chat.completions.create(
-            model="llama-3.2-90b-vision-preview",
-            messages=[
+    if image_url:
+        # Create a HumanMessage with the image URL
+        message = HumanMessage(
+            content=[
                 {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "extract total expense as json:\n    date: str\n    amount: float\n    category: str\n    description: Optional[str]",
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": "https://templates.invoicehome.com/invoice-template-en-neat-750px.png"
-                            },
-                        },
-                    ],
+                    "type": "text",
+                    "text": "Extract total expense from the invoice in the following format:\n"
+                    "    date: str\n"
+                    "    amount: float\n"
+                    "    category: str\n"
+                    "    description: Optional[str]",
                 },
-            ],
+                {"type": "image_url", "image_url": {"url": image_url}},
+            ]
         )
-        # expense_data = llm_vision.invoke([message])
+
+        # Send the message to the model
+        expense_data = llm_vision.invoke(message)
+        print(expense_data.content)
 
     else:
         expense_data = llm.with_structured_output(ExpenseSchema).invoke(user_input)
@@ -131,9 +125,9 @@ def detect_intent(user_query: str):
         return "unknown"
 
 
-def add_expense(user_query: str, image_content: bytes = None):
+def add_expense(user_query: str, image_content, image_url):
     """Wrapper for adding expenses."""
-    return parse_expense_input(user_query, image_content)
+    return parse_expense_input(user_query, image_content, image_url)
 
 
 def search_expense(user_query: str):
@@ -148,13 +142,13 @@ API_MAPPING = {
 }
 
 
-def route_request(user_query: str, image_content: bytes = None):
+def route_request(user_query: str, image_content=None, image_url=None):
     """Route the user query to the appropriate API based on detected intent."""
     intent = detect_intent(user_query)
 
     if intent == "unknown":
         response = {"response": "Sorry, I couldn't understand your request."}
     elif intent in API_MAPPING:
-        response = API_MAPPING[intent](user_query, image_content)
+        response = API_MAPPING[intent](user_query, image_content, image_url)
 
     return {**response, "intent": intent}
