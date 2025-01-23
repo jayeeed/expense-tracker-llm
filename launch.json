@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "type": "debugpy",
+            "request": "launch",
+            "name": "Launch Program",
+            "program": "${workspaceFolder}/${input:programPath}"
+        }
+    ],
+    "inputs": [
+        {
+            "type": "pickString",
+            "id": "programPath",
+            "description": "Select the Python file to debug",
+            "options": [
+                "main.py",
+                "app/db_utils.py",
+                "app/langchain_utils.py",
+                "app/routers/expense.py",
+                "app/qdrant_utils.py",
+                "groq_test.py"
+            ]
+        }
+    ]
+}

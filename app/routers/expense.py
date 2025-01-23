@@ -1,9 +1,5 @@
 from app import langchain_utils
 from fastapi import APIRouter, File, UploadFile, Form
-from fastapi import HTTPException
-import requests
-from io import BytesIO
-from PIL import Image
 
 router = APIRouter()
 
@@ -16,25 +12,12 @@ async def handle_expense(
 ):
     """Handle user input to either save or search for expenses, with optional image or image URL."""
     if user_input:
-        # Handle text input
-        result = langchain_utils.route_request(user_input)
+        result = langchain_utils.parse_expense_input(user_input)
     elif image:
-        # If there's an image, process it using the llm_vision model
         image_content = await image.read()
-        result = langchain_utils.route_request(image_content)  # Process image
-    elif image_url:
-        # If there's an image URL, download and process it
-        try:
-            response = requests.get(image_url)
-            response.raise_for_status()
-            print(response)
-            # image_content = BytesIO(response.content)
-            # image = Image.open(image_content)
-            result = langchain_utils.route_request(image_url)
-        except requests.exceptions.RequestException as e:
-            raise HTTPException(
-                status_code=400, detail=f"Error fetching image from URL: {e}"
-            )
+        result = langchain_utils.route_request(image_content)
+    # elif image_url:
+    #     result = langchain_utils.parse_expense_input(image_url)
     else:
         result = {"error": "No input provided"}
 

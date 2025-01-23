@@ -10,10 +10,6 @@ from langsmith import traceable
 from threading import Thread
 from langchain.schema import HumanMessage
 from langchain_groq import ChatGroq
-from groq import Groq
-from PIL import Image
-import io
-from langchain_core.messages import HumanMessage
 
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 API_KEY = os.getenv("GROQ_API_KEY")
@@ -41,30 +37,31 @@ def generate_embedding(user_input: str):
 
 
 @traceable
-def parse_expense_input(user_input: str, image_url):
+def parse_expense_input(
+    user_input: str = None, image_url: str = None, image_content=None
+):
     """Parse user input (text or image) and store as embeddings in Qdrant."""
-    if image_url:
-        # Create a HumanMessage with the image URL
-        message = HumanMessage(
-            content=[
+    input_data = [
+        {
+            "role": "user",
+            "content": [
                 {
                     "type": "text",
-                    "text": "Extract total expense from the invoice in the following format:\n"
-                    "    date: str\n"
-                    "    amount: float\n"
-                    "    category: str\n"
-                    "    description: Optional[str]",
+                    "text": "Simply extract data from the image as below format:\n    date: str\n    amount: float\n    category: str\n    description: Optional[str]",
                 },
-                {"type": "image_url", "image_url": {"url": image_url}},
-            ]
-        )
+                {
+                    "type": "image_url",
+                    "image_url": {"url": user_input},
+                },
+            ],
+        },
+    ]
 
-        # Send the message to the model
-        expense_data = llm_vision.invoke(message)
-        print(expense_data.content)
-
-    else:
-        expense_data = llm.with_structured_output(ExpenseSchema).invoke(user_input)
+    # Invoke the model with structured output
+    expense_data_unstruct = llm_vision.invoke(input_data)
+    expense_data = llm.with_structured_output(ExpenseSchema).invoke(
+        expense_data_unstruct.content
+    )
 
     expense_data.update(
         {"date": datetime.now().strftime("%Y-%m-%d"), "id": uuid.uuid4().hex}
@@ -73,7 +70,7 @@ def parse_expense_input(user_input: str, image_url):
 
     point = PointStruct(
         id=expense_data["id"],
-        vector=generate_embedding(user_input),
+        vector=generate_embedding(user_input or image_url),
         payload={
             key: expense_data[key]
             for key in ["date", "amount", "category", "description"]
@@ -125,9 +122,9 @@ def detect_intent(user_query: str):
         return "unknown"
 
 
-def add_expense(user_query: str, image_content, image_url):
+def add_expense(user_query: str, image_content, image_url: str):
     """Wrapper for adding expenses."""
-    return parse_expense_input(user_query, image_content, image_url)
+    return parse_expense_input(image_url)
 
 
 def search_expense(user_query: str):
@@ -144,7 +141,12 @@ API_MAPPING = {
 
 def route_request(user_query: str, image_content=None, image_url=None):
     """Route the user query to the appropriate API based on detected intent."""
-    intent = detect_intent(user_query)
+    if image_url:
+        intent = "add_expense"
+    elif image_content:
+        intent = "add_expense"
+    elif user_query:
+        intent = detect_intent(user_query)
 
     if intent == "unknown":
         response = {"response": "Sorry, I couldn't understand your request."}
