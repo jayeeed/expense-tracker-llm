@@ -17,8 +17,7 @@
                 "app/db_utils.py",
                 "app/langchain_utils.py",
                 "app/routers/expense.py",
-                "app/qdrant_utils.py",
-                "groq_test.py"
+                "app/qdrant_utils.py"
             ]
         }
     ]
