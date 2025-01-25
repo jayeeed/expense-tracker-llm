@@ -14,7 +14,12 @@ def route_request(
     """Route the request to either add or search for expenses based on intent."""
 
     if image_content or image_url:
-        return parse_expense_input(image_content=image_content, image_url=image_url)
+        return {
+            "intent": "add_expense",
+            "result": parse_expense_input(
+                image_content=image_content, image_url=image_url
+            ),
+        }
 
     intent_detection_prompt = (
         "You are an intent detection model. Classify the following input as one of these options:\n"

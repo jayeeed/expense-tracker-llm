@@ -16,17 +16,17 @@ from langchain_community.utilities import SQLDatabase
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 API_KEY = os.getenv("GROQ_API_KEY")
 
-llm = ChatAnthropic(
-    api_key=os.getenv("ANTHROPIC_API_KEY"),
-    model="claude-3-5-sonnet-20240620",
-    temperature=0.1,
-)
-
-# llm = ChatGroq(
-#     api_key=API_KEY,
-#     model="llama-3.3-70b-versatile",
+# llm = ChatAnthropic(
+#     api_key=os.getenv("ANTHROPIC_API_KEY"),
+#     model="claude-3-5-sonnet-20240620",
 #     temperature=0.1,
 # )
+
+llm = ChatGroq(
+    api_key=API_KEY,
+    model="llama-3.3-70b-versatile",
+    temperature=0.1,
+)
 
 llm_vision = ChatGroq(
     api_key=API_KEY,
