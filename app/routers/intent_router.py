@@ -29,13 +29,11 @@ def route_request(
     print("intent detected: ", intent)
 
     if intent == "add_expense":
-        return parse_expense_input(user_input=user_input)
-
+        result = parse_expense_input(user_input=user_input)
     elif intent == "search_expense":
-        # return get_from_vectordb(user_input=user_input)
-        return get_from_pgdb(user_input=user_input)
+        # result = get_from_vectordb(user_input=user_input)
+        result = get_from_pgdb(user_input=user_input)
+    else:
+        result = {"error": "Could not determine intent. Please try again."}
 
-    elif intent == "unknown":
-        return {"error": "Could not determine intent. Please try again."}
-
-    return {"error": "Could not determine intent. Please try again."}
+    return {"intent": intent, "result": result}
