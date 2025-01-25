@@ -1,7 +1,18 @@
 import psycopg2
 import os
+from psycopg2.extras import RealDictCursor
 
 db_uri = os.getenv("POSTGRES_URL")
+
+
+def db_query(query):
+    connection = psycopg2.connect(db_uri)
+    cursor = connection.cursor(cursor_factory=RealDictCursor)
+    cursor.execute(query)
+    result = cursor.fetchall()
+    connection.close()
+
+    return result
 
 
 def init_db():

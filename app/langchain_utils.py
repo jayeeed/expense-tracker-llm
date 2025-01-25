@@ -2,12 +2,13 @@ import os
 import uuid
 from datetime import datetime
 from qdrant_client.http.models import PointStruct
-from app.schemas import ExpenseSchema
+from app.schemas import ExpenseSchema, ExpenseSearch
 from app.qdrant_utils import embedding_model, client
-from app.db_utils import save_to_db
+from app.db_utils import save_to_db, db_query
 from langsmith import traceable
 from threading import Thread
 from langchain_groq import ChatGroq
+from langchain_anthropic import ChatAnthropic
 from langchain_community.agent_toolkits.sql.base import create_sql_agent
 from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
 from langchain_community.utilities import SQLDatabase
@@ -15,18 +16,22 @@ from langchain_community.utilities import SQLDatabase
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 API_KEY = os.getenv("GROQ_API_KEY")
 
-llm = ChatGroq(
-    api_key=API_KEY,
-    model="llama-3.3-70b-versatile",
+llm = ChatAnthropic(
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
+    model="claude-3-5-sonnet-20240620",
     temperature=0.1,
-    # max_tokens=100,
 )
+
+# llm = ChatGroq(
+#     api_key=API_KEY,
+#     model="llama-3.3-70b-versatile",
+#     temperature=0.1,
+# )
 
 llm_vision = ChatGroq(
     api_key=API_KEY,
     model="llama-3.2-90b-vision-preview",
     temperature=0.1,
-    # max_tokens=100,
 )
 
 
@@ -80,7 +85,6 @@ def parse_expense_input(
     expense_data.update(
         {"date": datetime.now().strftime("%Y-%m-%d"), "id": uuid.uuid4().hex}
     )
-    print("point created: ", expense_data["id"])
 
     point = PointStruct(
         id=expense_data["id"],
@@ -114,17 +118,32 @@ def get_from_vectordb(user_input: str):
     return filtered_results[0]
 
 
-@traceable
-def get_from_pgdb(user_input):
-    """Get the expense data from the database."""
-    db_uri = os.getenv("POSTGRES_URL")
-    db = SQLDatabase.from_uri(db_uri)
-    toolkit = SQLDatabaseToolkit(db=db, llm=llm)
-    agent = create_sql_agent(
-        llm=llm,
-        toolkit=toolkit,
-        verbose=True,
-    )
-    result = agent.invoke(user_input)
+# @traceable
+# def get_from_pgdb(user_input):
+#     """Get the expense data from the database."""
+#     db_uri = os.getenv("POSTGRES_URL")
+#     db = SQLDatabase.from_uri(db_uri)
+#     toolkit = SQLDatabaseToolkit(db=db, llm=llm)
+#     agent = create_sql_agent(
+#         llm=llm,
+#         toolkit=toolkit,
+#         verbose=False,
+#     )
+#     result = agent.invoke(user_input)
 
-    return result
+#     return result
+
+
+@traceable
+def get_from_pgdb(user_input: str):
+    """Get the expense data from the database."""
+    response = llm.with_structured_output(ExpenseSearch).invoke(user_input)
+    query = response["query"]
+    result = db_query(query)
+
+    result_template = (
+        f"Result value in simple language (currency is Taka) (max 20 words): {result}"
+    )
+    response = llm.invoke(result_template)
+
+    return response.content

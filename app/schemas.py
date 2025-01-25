@@ -6,15 +6,15 @@ from enum import Enum
 class ExpenseCategory(str, Enum):
     """Enum for representing expense categories."""
 
-    FOOD = "food"
-    TRAVEL = "travel"
-    ENTERTAINMENT = "entertainment"
-    UTILITIES = "utilities"
-    GROCERY = "grocery"
-    SHOPPING = "shopping"
-    ELECTRONICS = "electronics"
-    HEALTH = "health"
-    MISCELLANEOUS = "miscellaneous"
+    FOOD = "Food"
+    TRAVEL = "Travel"
+    ENTERTAINMENT = "Entertainment"
+    UTILITIES = "Utilities"
+    GROCERY = "Grocery"
+    SHOPPING = "Shopping"
+    ELECTRONICS = "Electronics"
+    HEALTH = "Health"
+    MISCELLANEOUS = "Miscellaneous"
 
 
 class ExpenseSchema(TypedDict):
@@ -30,3 +30,9 @@ class ExpenseSchema(TypedDict):
 
 class ExpenseCreate(ExpenseSchema):
     pass
+
+
+class ExpenseSearch(TypedDict):
+    """Generate sql query for searching expenses on postgres db."""
+
+    query: str
