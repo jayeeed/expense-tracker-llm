@@ -3,7 +3,8 @@ from qdrant_client import QdrantClient
 
 # from langchain_qdrant import QdrantVectorStore
 from qdrant_client.models import Distance, VectorParams
-from langchain_ollama import OllamaEmbeddings
+
+# from langchain_ollama import OllamaEmbeddings
 from langchain_nomic import NomicEmbeddings
 
 URL = os.getenv("QDRANT_URL")

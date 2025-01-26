@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Annotated
 from typing_extensions import TypedDict
 from enum import Enum
 
@@ -6,15 +6,15 @@ from enum import Enum
 class ExpenseCategory(str, Enum):
     """Enum for representing expense categories."""
 
-    FOOD = "Food"
-    TRAVEL = "Travel"
-    ENTERTAINMENT = "Entertainment"
-    UTILITIES = "Utilities"
-    GROCERY = "Grocery"
-    SHOPPING = "Shopping"
-    ELECTRONICS = "Electronics"
-    HEALTH = "Health"
-    MISCELLANEOUS = "Miscellaneous"
+    FOOD = "food"
+    TRAVEL = "travel"
+    ENTERTAINMENT = "entertainment"
+    UTILITIES = "utilities"
+    GROCERY = "grocery"
+    SHOPPING = "shopping"
+    ELECTRONICS = "electronics"
+    HEALTH = "health"
+    MISCELLANEOUS = "miscellaneous"
 
 
 class ExpenseSchema(TypedDict):
@@ -35,4 +35,10 @@ class ExpenseCreate(ExpenseSchema):
 class ExpenseSearch(TypedDict):
     """Generate sql query for searching expenses on postgres db."""
 
-    query: str
+    query: Annotated[str, ..., "SQL query for searching expenses on postgres db."]
+
+
+class ExpenseSearchResponse(TypedDict):
+    """Response for searching expenses on postgres db."""
+
+    response: Annotated[str, ..., "Explain query output in short human language."]

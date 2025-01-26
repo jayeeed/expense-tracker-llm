@@ -2,7 +2,7 @@ import os
 import uuid
 from datetime import datetime
 from qdrant_client.http.models import PointStruct
-from app.schemas import ExpenseSchema, ExpenseSearch
+from app.schemas import ExpenseSchema, ExpenseSearch, ExpenseSearchResponse
 from app.qdrant_utils import embedding_model, client
 from app.db_utils import save_to_db, db_query
 from langsmith import traceable
@@ -139,11 +139,8 @@ def get_from_pgdb(user_input: str):
     """Get the expense data from the database."""
     response = llm.with_structured_output(ExpenseSearch).invoke(user_input)
     query = response["query"]
-    result = db_query(query)
+    output = db_query(query)
 
-    result_template = (
-        f"Result value in simple language (currency is Taka) (max 20 words): {result}"
-    )
-    response = llm.invoke(result_template)
+    result = llm.with_structured_output(ExpenseSearchResponse).invoke(f"{output}")
 
-    return response.content
+    return result["response"]

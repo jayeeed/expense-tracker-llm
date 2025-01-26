@@ -6,11 +6,11 @@ db_uri = os.getenv("POSTGRES_URL")
 
 
 def db_query(query):
-    connection = psycopg2.connect(db_uri)
-    cursor = connection.cursor(cursor_factory=RealDictCursor)
+    conn = psycopg2.connect(db_uri)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute(query)
     result = cursor.fetchall()
-    connection.close()
+    conn.close()
 
     return result
 
@@ -49,11 +49,11 @@ def save_to_db(expense_data):
             VALUES (%s, %s, %s, %s, %s)
             """,
             (
-                expense_data["id"],
-                expense_data["date"],
+                expense_data["id"].lower(),
+                expense_data["date"].lower(),
                 expense_data["amount"],
-                expense_data["category"],
-                expense_data["description"],
+                expense_data["category"].lower(),
+                expense_data["description"].lower(),
             ),
         )
         conn.commit()
