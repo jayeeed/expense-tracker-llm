@@ -3,7 +3,6 @@ langchain_anthropic==0.3.4
 langchain_community==0.3.15
 langchain_groq==0.2.3
 langchain_nomic==0.1.4
-langsmith==0.3.1
 psycopg2-binary==2.9.10
 qdrant_client==1.13.2
 typing_extensions==4.12.2
