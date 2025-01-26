@@ -1,8 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-# from pyngrok import ngrok
+from pyngrok import ngrok
 import uvicorn
 from app.routers import expense_router
 
