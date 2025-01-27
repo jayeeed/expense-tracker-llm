@@ -139,8 +139,7 @@ def get_from_pgdb(user_input: str):
     """Get the expense data from the database."""
     response = llm.with_structured_output(ExpenseSearch).invoke(user_input)
     query = response["query"]
-    output = db_query(query)
-
+    output = db_query(query.lower())
     result = llm.with_structured_output(ExpenseSearchResponse).invoke(f"{output}")
 
     return result["response"]

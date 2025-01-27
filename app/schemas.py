@@ -41,4 +41,4 @@ class ExpenseSearch(TypedDict):
 class ExpenseSearchResponse(TypedDict):
     """Response for searching expenses on postgres db."""
 
-    response: Annotated[str, ..., "Explain query output in short human language."]
+    response: Annotated[str, ..., "Explain query output in short general language."]
