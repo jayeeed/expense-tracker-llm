@@ -17,6 +17,14 @@ class ExpenseCategory(str, Enum):
     MISCELLANEOUS = "miscellaneous"
 
 
+class IntentCategory(str, Enum):
+    """Enum for representing intent categories."""
+
+    ADD_EXPENSE = "add_expense"
+    SEARCH_EXPENSE = "search_expense"
+    UNKNOWN = "unknown"
+
+
 class ExpenseSchema(TypedDict):
     """Schema for representing an expense."""
 
@@ -33,12 +41,18 @@ class ExpenseCreate(ExpenseSchema):
 
 
 class ExpenseSearch(TypedDict):
-    """Generate sql query for searching expenses on postgres db."""
+    """Generate sql query for searching expenses."""
 
     query: Annotated[str, ..., "SQL query for searching expenses on postgres db."]
 
 
 class ExpenseSearchResponse(TypedDict):
-    """Response for searching expenses on postgres db."""
+    """Response for searching expenses."""
 
     response: Annotated[str, ..., "Explain query output in short general language."]
+
+
+class IntentDetection(TypedDict):
+    """Detect intent from user input."""
+
+    intent: Annotated[IntentCategory, ..., "Intent detected from user input."]

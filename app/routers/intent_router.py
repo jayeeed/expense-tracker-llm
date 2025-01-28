@@ -4,8 +4,7 @@ from app.langchain_utils import (
     get_from_vectordb,
     get_from_pgdb,
 )
-
-INTENT_OPTIONS = ["add_expense", "search_expense", "unknown"]
+from app.schemas import IntentDetection
 
 
 def route_request(
@@ -21,15 +20,8 @@ def route_request(
             ),
         }
 
-    intent_detection_prompt = (
-        "You are an intent detection model. Classify the following input as one of these options:\n"
-        f"{', '.join(INTENT_OPTIONS)}.\n"
-        f"Input: {user_input}\n"
-        "Output:"
-    )
-
-    intent_response = llm.invoke(intent_detection_prompt).content.strip().lower()
-    intent = intent_response if intent_response in INTENT_OPTIONS else "unknown"
+    intent_response = llm.with_structured_output(IntentDetection).invoke(user_input)
+    intent = intent_response["intent"].strip()
 
     print("intent detected: ", intent)
 
