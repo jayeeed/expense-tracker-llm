@@ -8,6 +8,7 @@ from app.db_utils import save_to_db, db_query
 from langsmith import traceable
 from threading import Thread
 from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from langchain_anthropic import ChatAnthropic
 from langchain_community.agent_toolkits.sql.base import create_sql_agent
 from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
@@ -16,15 +17,21 @@ from langchain_community.utilities import SQLDatabase
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 API_KEY = os.getenv("GROQ_API_KEY")
 
+# llm = ChatOllama(
+#     model="llama3.1:8b-instruct-q4_1",
+#     temperature=0.1,
+# )
+
 # llm = ChatAnthropic(
 #     api_key=os.getenv("ANTHROPIC_API_KEY"),
 #     model="claude-3-5-sonnet-20240620",
 #     temperature=0.1,
 # )
 
+
 llm = ChatGroq(
     api_key=API_KEY,
-    model="llama-3.3-70b-versatile",
+    model="deepseek-r1-distill-llama-70b",
     temperature=0.1,
 )
 
@@ -127,7 +134,7 @@ def get_from_vectordb(user_input: str):
 #     agent = create_sql_agent(
 #         llm=llm,
 #         toolkit=toolkit,
-#         verbose=False,
+#         verbose=True,
 #     )
 #     result = agent.invoke(user_input)
 
