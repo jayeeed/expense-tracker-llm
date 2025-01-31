@@ -1,18 +1,15 @@
 import os
 import uuid
 from datetime import datetime
-from qdrant_client.http.models import PointStruct
-from app.schemas import ExpenseSchema, ExpenseSearch, ExpenseSearchResponse
-from app.qdrant_utils import embedding_model, client
-from app.db_utils import save_to_db, db_query
+import dateparser
+from app.tool_factory import tools
+from app.db_utils import save_to_db
 from langsmith import traceable
-from threading import Thread
 from langchain_groq import ChatGroq
 from langchain_ollama import ChatOllama
 from langchain_anthropic import ChatAnthropic
-from langchain_community.agent_toolkits.sql.base import create_sql_agent
-from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
-from langchain_community.utilities import SQLDatabase
+from langchain_core.messages import HumanMessage
+from app.tool_factory import *
 
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 API_KEY = os.getenv("GROQ_API_KEY")
@@ -35,24 +32,26 @@ llm = ChatGroq(
     temperature=0.1,
 )
 
+llm_with_tools = llm.bind_tools(tools)
+
 llm_vision = ChatGroq(
     api_key=API_KEY,
     model="llama-3.2-90b-vision-preview",
     temperature=0.1,
 )
 
-
-def generate_embedding(user_input: str):
-    response = embedding_model.embed_query(text=user_input)
-    return response
+SEARCH_FUNCTIONS = {
+    "search_expense": search_by_fields,
+}
 
 
 @traceable
-def parse_expense_input(
+def route_request(
     user_input: str = None, image_content: str = None, image_url: str = None
 ):
-    """Parse user input image and store as embeddings in Qdrant."""
-    if image_url or image_content:
+    """Route the request to either add or search for expenses based on intent."""
+
+    if image_content or image_url:
         input_data = [
             {
                 "role": "user",
@@ -60,7 +59,7 @@ def parse_expense_input(
                     {
                         "type": "text",
                         "text": (
-                            "Simply extract data from the image as below format:\n"
+                            "Simply extract data from the image in the following format:\n"
                             "    date: str (e.g., '2023-10-01')\n"
                             "    amount: float (e.g., 23.45)\n"
                             "    category: str (e.g., 'Food')\n"
@@ -82,71 +81,60 @@ def parse_expense_input(
         ]
 
         expense_data_unstruct = llm_vision.invoke(input_data)
-        expense_data = llm.with_structured_output(ExpenseSchema).invoke(
-            expense_data_unstruct.content
-        )
+        expense_data_dict = llm_with_tools.invoke(expense_data_unstruct.content)
+        expense_data = expense_data_dict.tool_calls[0]["args"]
 
+        return {"intent": "add_expense", "result": parse_expense_input(expense_data)}
+
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    user_input_with_date = f"{user_input} (Current Date: {current_date})"
+
+    ai_msg = [HumanMessage(user_input_with_date)]
+    intent_response = llm_with_tools.invoke(ai_msg)
+    intent = intent_response.tool_calls[0]["name"]
+    print("Intent:", intent)
+    parsed_input = intent_response.tool_calls[0]["args"]
+    print("Parsed Input:", parsed_input)
+
+    if intent == "add_expense":
+        result = parse_expense_input(parsed_input)
+    elif intent in SEARCH_FUNCTIONS:
+        tool_function = SEARCH_FUNCTIONS[intent]
+        result_response = tool_function.invoke(parsed_input)
+        if result_response == []:
+            result = "No results found."
+        else:
+            result = llm.invoke(
+                f"Explain response in general language (max 20 words): {result_response}."
+            )
+            result_content = result.content
+            start_idx = result_content.find("<think>")
+            end_idx = result_content.find("</think>") + len("</think>")
+            if start_idx != -1 and end_idx != -1:
+                result_content = result_content[:start_idx] + result_content[end_idx:]
+
+            result = result_content.strip()
     else:
-        expense_data = llm.with_structured_output(ExpenseSchema).invoke(user_input)
+        result = {"error": "Could not determine intent. Please try again."}
 
-    expense_data.update(
-        {"date": datetime.now().strftime("%Y-%m-%d"), "id": uuid.uuid4().hex}
-    )
-
-    point = PointStruct(
-        id=expense_data["id"],
-        vector=generate_embedding(user_input or image_url or image_content),
-        payload={
-            key: expense_data[key]
-            for key in ["date", "amount", "category", "description"]
-        },
-    )
-    client.upsert(points=[point], collection_name=COLLECTION_NAME)
-
-    db_thread = Thread(target=save_to_db, args=(expense_data,))
-    db_thread.start()
-
-    return {**expense_data, "vector": point.vector}
+    return {"intent": intent, "result": result}
 
 
 @traceable
-def get_from_vectordb(user_input: str):
-    """Search for similar expenses stored in Qdrant with optional category filtering."""
-    results_with_scores = client.search(
-        query_vector=generate_embedding(user_input),
-        collection_name=COLLECTION_NAME,
-    )
+def parse_expense_input(expense_data: dict):
+    """Parse structured expense data and store it in the database."""
 
-    filtered_results = []
-    for result in results_with_scores:
-        if result.score > 0.5:
-            filtered_results.append(result.payload)
+    if not expense_data.get("date"):
+        expense_data["date"] = datetime.now().strftime("%Y-%m-%d")
+    expense_data["id"] = uuid.uuid4().hex
+    save_to_db(expense_data)
 
-    return filtered_results[0]
-
-
-# @traceable
-# def get_from_pgdb(user_input):
-#     """Get the expense data from the database."""
-#     db_uri = os.getenv("POSTGRES_URL")
-#     db = SQLDatabase.from_uri(db_uri)
-#     toolkit = SQLDatabaseToolkit(db=db, llm=llm)
-#     agent = create_sql_agent(
-#         llm=llm,
-#         toolkit=toolkit,
-#         verbose=True,
-#     )
-#     result = agent.invoke(user_input)
-
-#     return result
+    return expense_data
 
 
 @traceable
-def get_from_pgdb(user_input: str):
+def get_from_pgdb(query: str):
     """Get the expense data from the database."""
-    response = llm.with_structured_output(ExpenseSearch).invoke(user_input)
-    query = response["query"]
-    output = db_query(query.lower())
-    result = llm.with_structured_output(ExpenseSearchResponse).invoke(f"{output}")
 
-    return result["response"]
+    response = llm_with_tools.invoke(query)
+    return response

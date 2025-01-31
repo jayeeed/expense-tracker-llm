@@ -1,5 +1,5 @@
 import base64
-from app.routers.intent_router import route_request
+from app.langchain_utils import route_request
 from fastapi import APIRouter, File, UploadFile, Form
 
 router = APIRouter()

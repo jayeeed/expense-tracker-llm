@@ -5,16 +5,6 @@ from psycopg2.extras import RealDictCursor
 db_uri = os.getenv("POSTGRES_URL")
 
 
-def db_query(query):
-    conn = psycopg2.connect(db_uri)
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    cursor.execute(query)
-    result = cursor.fetchall()
-    conn.close()
-
-    return result
-
-
 def init_db():
     conn = psycopg2.connect(db_uri)
     cursor = conn.cursor()
@@ -57,3 +47,12 @@ def save_to_db(expense_data):
             ),
         )
         conn.commit()
+
+
+def db_query(query):
+    conn = psycopg2.connect(db_uri)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute(query)
+    result = cursor.fetchall()
+
+    return result
