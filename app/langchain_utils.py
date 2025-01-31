@@ -72,7 +72,7 @@ def process_image_request(image_content: str, image_url: str):
 def process_text_request(user_input: str):
     """Handle text-based expense input."""
     current_date = datetime.now().strftime("%Y-%m-%d")
-    user_input_with_date = f"{user_input} (Current Date: {current_date})"
+    user_input_with_date = f"{user_input} \n# Current Date: {current_date} \n(NB: Only for reference don't use it for anything else.)"
 
     intent_response = llm_with_tools.invoke([HumanMessage(user_input_with_date)])
 
@@ -112,7 +112,7 @@ def process_search_request(intent: str, parsed_input: dict):
         return "No results found."
 
     result = llm.invoke(
-        f"Explain response in general language (max 20 words): {result_response}."
+        f"Explain response consisely on casual language (amount and category must be included) (don't add this instruction text to the response): {result_response}.",
     )
     result_content = clean_llm_response(result.content)
 
