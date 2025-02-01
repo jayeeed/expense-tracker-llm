@@ -26,6 +26,8 @@ SEARCH_FUNCTIONS = {
     "average_expense": average_expense,
     "recurring_expenses": recurring_expenses,
     "check_budget": check_budget,
+    "daterange_all_expenses": daterange_all_expenses,
+    "daterange_category_expenses": daterange_category_expenses,
     "unknown": unknown,
 }
 
@@ -122,7 +124,7 @@ def process_search_request(intent: str, parsed_input: dict):
         return "No results found."
 
     result = llm.invoke(
-        f"Explain response consisely on casual language no markdown format (amount and category must be included) (don't add this instruction text to the response): {result_response}.",
+        f"Explain consisely on general language: \n {result_response} \n# Instructions: \n- amount and category must be included \n- don't add any intructions to the response \n- don't add any irrelevant words to the response \n- always sum up amount value if present \n- always merge category values as one if present.",
     )
     result_content = clean_llm_response(result.content)
 

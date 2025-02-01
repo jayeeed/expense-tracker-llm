@@ -171,6 +171,35 @@ def check_budget(category: str, budget_limit: float) -> str:
         return f"You're within budget for {category}. Spent: {total_spent}, Limit: {budget_limit}"
 
 
+@tool("daterange_all_expenses", response_format="content")
+def daterange_all_expenses(from_date: str, to_date: str) -> list:
+    """Retrieve all expenses within a given date range (inclusive)."""
+
+    query = f"""
+        SELECT id, date, amount, category, description
+        FROM expenses
+        WHERE date::DATE BETWEEN '{from_date}' AND '{to_date}'
+        ORDER BY date ASC
+    """
+
+    return db_query(query)
+
+
+@tool("daterange_category_expenses", response_format="content")
+def daterange_category_expenses(category: str, from_date: str, to_date: str) -> list:
+    """Retrieve expenses for a specific category within a given date range (inclusive)."""
+
+    query = f"""
+        SELECT id, date, amount, category, description
+        FROM expenses
+        WHERE LOWER(category) = '{category.lower()}'
+        AND date::DATE BETWEEN '{from_date}' AND '{to_date}'
+        ORDER BY date ASC
+    """
+
+    return db_query(query)
+
+
 @tool("unknown", response_format="content")
 def unknown() -> str:
     """Handle unknown intents."""
@@ -188,5 +217,7 @@ tools = [
     expense_anomalies,
     recurring_expenses,
     check_budget,
+    daterange_all_expenses,
+    daterange_category_expenses,
     unknown,
 ]
