@@ -17,7 +17,17 @@ llm_vision = ChatGroq(
     api_key=API_KEY, model="llama-3.2-90b-vision-preview", temperature=0.1
 )
 
-SEARCH_FUNCTIONS = {"search_expense": search_by_fields}
+SEARCH_FUNCTIONS = {
+    "search_by_fields": search_by_fields,
+    "sum_expense": sum_expense,
+    "min_max_expense": min_max_expense,
+    "monthly_expense_summary": monthly_expense_summary,
+    "expense_anomalies": expense_anomalies,
+    "average_expense": average_expense,
+    "recurring_expenses": recurring_expenses,
+    "check_budget": check_budget,
+    "unknown": unknown,
+}
 
 
 @traceable
@@ -66,13 +76,13 @@ def process_image_request(image_content: str, image_url: str):
     expense_data_dict = llm_with_tools.invoke(expense_data_unstruct.content)
     expense_data = expense_data_dict.tool_calls[0]["args"]
 
-    return {"intent": "add_expense", "result": parse_expense_input(expense_data)}
+    return {"intent": "create_expense", "result": parse_expense_input(expense_data)}
 
 
 def process_text_request(user_input: str):
     """Handle text-based expense input."""
     current_date = datetime.now().strftime("%Y-%m-%d")
-    user_input_with_date = f"{user_input} \n# Current Date: {current_date} \n(NB: Only for reference don't use it for anything else.)"
+    user_input_with_date = f"{user_input} \n# Current Date: {current_date} \n(NB: Only for reference don't use it for anything else. Also ignore meaningless/irrelevant words for expense.)"
 
     intent_response = llm_with_tools.invoke([HumanMessage(user_input_with_date)])
 
@@ -89,7 +99,7 @@ def process_text_request(user_input: str):
     print("Intent:", intent)
     print("Parsed Input:", parsed_input)
 
-    if intent == "add_expense":
+    if intent == "create_expense":
         return {"intent": intent, "result": parse_expense_input(parsed_input)}
     elif intent in SEARCH_FUNCTIONS:
         return {

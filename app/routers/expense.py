@@ -5,6 +5,11 @@ from fastapi import APIRouter, File, UploadFile, Form
 router = APIRouter()
 
 
+@router.get("/")
+async def root():
+    return {"message": "Hello World"}
+
+
 @router.post("/handle-expense/")
 async def handle_expense(
     user_input: str = Form(None),
