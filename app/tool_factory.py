@@ -168,6 +168,7 @@ def check_budget(category: str, budget_limit: float) -> str:
 @tool("unknown", response_format="content")
 def unknown() -> str:
     """Handle unknown intents."""
+
     return "Could not determine intent. Please refine your input."
 
 
@@ -181,4 +182,5 @@ tools = [
     expense_anomalies,
     recurring_expenses,
     check_budget,
+    unknown,
 ]
