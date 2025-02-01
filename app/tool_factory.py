@@ -18,6 +18,7 @@ class Category(Enum):
     ELECTRONICS = "electronics"
     HEALTH = "health"
     MISCELLANEOUS = "miscellaneous"
+    NONE = "none"
 
 
 @tool("add_expense", response_format="content")
