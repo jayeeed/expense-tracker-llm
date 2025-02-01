@@ -12,7 +12,7 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS expenses (
             id TEXT PRIMARY KEY,
-            date TEXT,
+            date DATE,
             amount REAL,
             category TEXT,
             description TEXT
@@ -40,7 +40,7 @@ def save_to_db(expense_data):
             """,
             (
                 expense_data["id"].lower(),
-                expense_data["date"].lower(),
+                expense_data["date"],
                 expense_data["amount"],
                 expense_data["category"].lower(),
                 expense_data["description"].lower(),

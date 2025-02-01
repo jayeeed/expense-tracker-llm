@@ -90,7 +90,8 @@ def monthly_expense_summary(year: int, month: int) -> dict:
     query = f"""
         SELECT category, SUM(amount)
         FROM expenses
-        WHERE EXTRACT(YEAR FROM date) = {year} AND EXTRACT(MONTH FROM date) = {month}
+        WHERE EXTRACT(YEAR FROM date::DATE) = {year} 
+        AND EXTRACT(MONTH FROM date::DATE) = {month}
         GROUP BY category
     """
 
@@ -154,12 +155,17 @@ def check_budget(category: str, budget_limit: float) -> str:
     """Check if expenses in a category exceed a given budget limit."""
 
     query = f"""
-        SELECT SUM(amount) FROM expenses WHERE LOWER(category) = '{category}'
+        SELECT SUM(amount) as total_spent FROM expenses WHERE LOWER(category) = '{category}'
     """
 
-    total_spent = db_query(query)
+    result = db_query(query)  # Returns a list of dictionaries
 
-    if total_spent and float(total_spent) > budget_limit:
+    if result and result[0]["total_spent"] is not None:
+        total_spent = float(result[0]["total_spent"])  # Extract the sum value properly
+    else:
+        total_spent = 0.0  # Default to 0 if no expenses exist in the category
+
+    if total_spent > budget_limit:
         return f"Warning: You've exceeded your budget for {category}. Spent: {total_spent}, Limit: {budget_limit}"
     else:
         return f"You're within budget for {category}. Spent: {total_spent}, Limit: {budget_limit}"

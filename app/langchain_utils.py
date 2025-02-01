@@ -122,7 +122,7 @@ def process_search_request(intent: str, parsed_input: dict):
         return "No results found."
 
     result = llm.invoke(
-        f"Explain response consisely on casual language (amount and category must be included) (don't add this instruction text to the response): {result_response}.",
+        f"Explain response consisely on casual language no markdown format (amount and category must be included) (don't add this instruction text to the response): {result_response}.",
     )
     result_content = clean_llm_response(result.content)
 
