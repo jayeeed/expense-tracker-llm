@@ -307,6 +307,53 @@ def predict_future_expenses(months_ahead: int) -> dict:
         return {"message": "Not enough data to predict future expenses."}
 
 
+@tool("compare_periods_expenses", response_format="content")
+def compare_periods_expenses(
+    from_date_1: str,
+    to_date_1: str,
+    from_date_2: str,
+    to_date_2: str,
+) -> dict:
+    """
+    Compare the total expenses between two date ranges.
+    Returns the totals for each period, the difference, and the percentage change.
+    """
+    query1 = f"SELECT SUM(amount) AS total_spent FROM expenses WHERE date::DATE BETWEEN '{from_date_1}' AND '{to_date_1}'"
+    query2 = f"SELECT SUM(amount) AS total_spent FROM expenses WHERE date::DATE BETWEEN '{from_date_2}' AND '{to_date_2}'"
+
+    result1 = db_query(query1)
+    result2 = db_query(query2)
+
+    total1 = (
+        float(result1[0]["total_spent"])
+        if result1 and result1[0]["total_spent"] is not None
+        else 0.0
+    )
+    total2 = (
+        float(result2[0]["total_spent"])
+        if result2 and result2[0]["total_spent"] is not None
+        else 0.0
+    )
+
+    difference = total2 - total1
+    percent_change = ((difference / total1) * 100) if total1 != 0 else None
+
+    return {
+        "period_1": {
+            "from_date": from_date_1,
+            "to_date": to_date_1,
+            "total_spent": total1,
+        },
+        "period_2": {
+            "from_date": from_date_2,
+            "to_date": to_date_2,
+            "total_spent": total2,
+        },
+        "difference": difference,
+        "percent_change": percent_change,
+    }
+
+
 @tool("unknown", response_format="content")
 def unknown() -> str:
     """Handle unknown intents."""
@@ -332,5 +379,6 @@ tools = [
     yearly_expense_summary,
     expense_trends,
     predict_future_expenses,
+    compare_periods_expenses,
     unknown,
 ]

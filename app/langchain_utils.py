@@ -115,7 +115,8 @@ def process_search_request(intent: str, parsed_input: dict):
 
     result = llm.invoke(
         f"Explain concisely in general language: \n {result_response} \n"
-        "# Instructions: \n- amount and category must be included \n"
+        "# Instructions:\n"
+        "- amount and category must be included \n"
         "- don't add any instructions to the response \n"
         "- don't add any irrelevant words to the response \n"
         "- always sum up amount value if present \n"
