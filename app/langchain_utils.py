@@ -17,20 +17,6 @@ llm_vision = ChatGroq(
     api_key=API_KEY, model="llama-3.2-90b-vision-preview", temperature=0.1
 )
 
-SEARCH_FUNCTIONS = {
-    "search_by_fields": search_by_fields,
-    "sum_expense": sum_expense,
-    "min_max_expense": min_max_expense,
-    "monthly_expense_summary": monthly_expense_summary,
-    "expense_anomalies": expense_anomalies,
-    "average_expense": average_expense,
-    "recurring_expenses": recurring_expenses,
-    "check_budget": check_budget,
-    "daterange_all_expenses": daterange_all_expenses,
-    "daterange_category_expenses": daterange_category_expenses,
-    "unknown": unknown,
-}
-
 
 @traceable
 def route_request(
@@ -88,7 +74,6 @@ def process_text_request(user_input: str):
 
     intent_response = llm_with_tools.invoke([HumanMessage(user_input_with_date)])
 
-    # Check if tool_calls exists and contains elements
     if not intent_response.tool_calls or len(intent_response.tool_calls) == 0:
         return {
             "intent": "unknown",
@@ -103,7 +88,7 @@ def process_text_request(user_input: str):
 
     if intent == "create_expense":
         return {"intent": intent, "result": parse_expense_input(parsed_input)}
-    elif intent in SEARCH_FUNCTIONS:
+    elif intent in f"{tools}":
         return {
             "intent": intent,
             "result": process_search_request(intent, parsed_input),
@@ -117,14 +102,24 @@ def process_text_request(user_input: str):
 
 def process_search_request(intent: str, parsed_input: dict):
     """Process a search request and return results."""
-    tool_function = SEARCH_FUNCTIONS[intent]
+
+    tool_function = next((tool for tool in tools if tool.name == intent), None)
+
+    if not tool_function:
+        return f"Invalid intent: {intent}"
+
     result_response = tool_function.invoke(parsed_input)
 
     if not result_response:
         return "No results found."
 
     result = llm.invoke(
-        f"Explain consisely on general language: \n {result_response} \n# Instructions: \n- amount and category must be included \n- don't add any intructions to the response \n- don't add any irrelevant words to the response \n- always sum up amount value if present \n- always merge category values as one if present.",
+        f"Explain concisely in general language: \n {result_response} \n"
+        "# Instructions: \n- amount and category must be included \n"
+        "- don't add any instructions to the response \n"
+        "- don't add any irrelevant words to the response \n"
+        "- always sum up amount value if present \n"
+        "- always merge category values as one if present.",
     )
     result_content = clean_llm_response(result.content)
 
@@ -133,6 +128,7 @@ def process_search_request(intent: str, parsed_input: dict):
 
 def clean_llm_response(response: str):
     """Remove unwanted XML tags from LLM response."""
+
     start_idx = response.find("<think>")
     end_idx = response.find("</think>") + len("</think>")
 
@@ -156,4 +152,5 @@ def parse_expense_input(expense_data: dict):
 @traceable
 def get_from_pgdb(query: str):
     """Retrieve expense data from the database."""
+
     return llm_with_tools.invoke(query)

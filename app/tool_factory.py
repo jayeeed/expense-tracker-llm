@@ -200,6 +200,113 @@ def daterange_category_expenses(category: str, from_date: str, to_date: str) -> 
     return db_query(query)
 
 
+@tool("highest_expense", response_format="content")
+def highest_expense() -> dict:
+    """Retrieve the highest expense recorded."""
+
+    query = "SELECT * FROM expenses ORDER BY amount DESC LIMIT 1"
+    return db_query(query)
+
+
+@tool("lowest_expense", response_format="content")
+def lowest_expense() -> dict:
+    """Retrieve the lowest expense recorded."""
+
+    query = "SELECT * FROM expenses ORDER BY amount ASC LIMIT 1"
+    return db_query(query)
+
+
+@tool("category_percentage", response_format="content")
+def category_percentage() -> dict:
+    """Calculate the percentage of total expenses spent on each category."""
+
+    query = """
+        SELECT category, 
+               SUM(amount) AS total_spent, 
+               (SUM(amount) * 100 / (SELECT SUM(amount) FROM expenses)) AS percentage
+        FROM expenses
+        GROUP BY category
+        ORDER BY percentage DESC
+    """
+
+    return db_query(query)
+
+
+@tool("yearly_expense_summary", response_format="content")
+def yearly_expense_summary(year: int) -> dict:
+    """Summarize total expenses per category for a given year."""
+
+    query = f"""
+        SELECT category, SUM(amount) AS total_spent
+        FROM expenses
+        WHERE EXTRACT(YEAR FROM date::DATE) = {year}
+        GROUP BY category
+        ORDER BY total_spent DESC
+    """
+
+    return db_query(query)
+
+
+@tool("expense_trends", response_format="content")
+def expense_trends(interval: str = "monthly") -> dict:
+    """
+    Identify expense trends over time.
+    `interval` can be 'monthly' or 'yearly'.
+    """
+
+    if interval == "monthly":
+        query = """
+            SELECT EXTRACT(YEAR FROM date::DATE) AS year, 
+                   EXTRACT(MONTH FROM date::DATE) AS month, 
+                   SUM(amount) AS total_spent
+            FROM expenses
+            GROUP BY year, month
+            ORDER BY year DESC, month DESC
+        """
+    else:
+        query = """
+            SELECT EXTRACT(YEAR FROM date::DATE) AS year, 
+                   SUM(amount) AS total_spent
+            FROM expenses
+            GROUP BY year
+            ORDER BY year DESC
+        """
+
+    return db_query(query)
+
+
+@tool("predict_future_expenses", response_format="content")
+def predict_future_expenses(months_ahead: int) -> dict:
+    """
+    Estimate future expenses based on historical data.
+    Uses an average of past monthly expenses to predict expenses for upcoming months.
+    """
+
+    query = """
+        WITH monthly_avg AS (
+            SELECT EXTRACT(YEAR FROM date::DATE) AS year,
+                   EXTRACT(MONTH FROM date::DATE) AS month,
+                   SUM(amount) AS total_spent
+            FROM expenses
+            GROUP BY year, month
+        )
+        SELECT AVG(total_spent) AS predicted_expense
+        FROM monthly_avg
+    """
+
+    result = db_query(query)
+    print(result)
+
+    if result and result[0]["predicted_expense"] is not None:
+        avg_expense = float(result[0]["predicted_expense"])
+        predictions = {
+            f"Month {i+1}": round(avg_expense, 2) for i in range(months_ahead)
+        }
+        return predictions
+    else:
+        return {"message": "Not enough data to predict future expenses."}
+
+
 @tool("unknown", response_format="content")
 def unknown() -> str:
     """Handle unknown intents."""
@@ -219,5 +326,11 @@ tools = [
     check_budget,
     daterange_all_expenses,
     daterange_category_expenses,
+    highest_expense,
+    lowest_expense,
+    category_percentage,
+    yearly_expense_summary,
+    expense_trends,
+    predict_future_expenses,
     unknown,
 ]
