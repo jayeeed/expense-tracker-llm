@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 from datetime import datetime
 from app.tool_factory import tools
@@ -29,7 +30,7 @@ def route_request(
 
     return process_text_request(user_input)
 
-
+@traceable
 def process_image_request(image_content: str, image_url: str):
     """Handle image-based expense input."""
     input_data = [
@@ -63,14 +64,18 @@ def process_image_request(image_content: str, image_url: str):
     expense_data_unstruct = llm_vision.invoke(input_data)
     expense_data_dict = llm_with_tools.invoke(expense_data_unstruct.content)
     expense_data = expense_data_dict.tool_calls[0]["args"]
+    print("Expense Data:", expense_data)
 
+    if "date" not in expense_data or not re.match(r"\d{4}-\d{2}-\d{2}", expense_data["date"]):
+        expense_data["date"] = datetime.now().strftime("%Y-%m-%d")
     return {"intent": "create_expense", "result": parse_expense_input(expense_data)}
 
-
+@traceable
 def process_text_request(user_input: str):
     """Handle text-based expense input."""
     current_date = datetime.now().strftime("%Y-%m-%d")
-    user_input_with_date = f"{user_input} \n# Current Date: {current_date} \n(NB: Only for reference don't use it for anything else. Also ignore meaningless/irrelevant words for expense.)"
+    user_input_with_date = f"{user_input} \n# Current Date: {current_date}"
+    "\n(NB: Only for reference don't use it for anything else. Also ignore meaningless/irrelevant words for expense.)"
 
     intent_response = llm_with_tools.invoke([HumanMessage(user_input_with_date)])
 
@@ -101,7 +106,7 @@ def process_text_request(user_input: str):
         "result": "Could not determine intent. Please try again.",
     }
 
-
+@traceable
 def process_search_request(intent: str, parsed_input: dict):
     """Process a search request and return results."""
 

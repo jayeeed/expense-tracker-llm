@@ -1,6 +1,9 @@
 import psycopg2
 import os
 from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
+
+load_dotenv()
 
 db_uri = os.getenv("POSTGRES_URL")
 
