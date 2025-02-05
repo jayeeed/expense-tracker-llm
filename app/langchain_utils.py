@@ -79,7 +79,7 @@ def process_text_request(user_input: str):
     """Handle text-based expense input."""
     current_date = datetime.now().strftime("%Y-%m-%d")
     user_input_with_date = (
-        f"{user_input}\n"
+        f"{user_input}"
         "\n# Current Date:"
         f"{current_date}"
         "\nInstructions:"
@@ -88,6 +88,7 @@ def process_text_request(user_input: str):
         "\n- Don't use these instructions, this is only for reference"
         "\n- Also ignore meaningless/irrelevant words for expense"
     )
+    
 
     intent_response = llm_with_tools.invoke([HumanMessage(user_input_with_date)])
 
