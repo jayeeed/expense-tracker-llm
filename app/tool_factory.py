@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 from langchain_core.tools import tool
@@ -354,6 +355,21 @@ def compare_periods_expenses(
     }
 
 
+@tool("greetings", response_format="content")
+def greetings() -> str:
+    """Greet the user based on the current time of day and invite them to share their expenses."""
+
+    current_hour = datetime.now().hour
+    if current_hour < 12:
+        greeting = "Good morning!"
+    elif current_hour < 17:
+        greeting = "Good afternoon!"
+    else:
+        greeting = "Good evening!"
+
+    return greeting + " Please tell me about your expenses."
+
+
 @tool("unknown", response_format="content")
 def unknown() -> str:
     """Handle unknown intents."""
@@ -380,5 +396,6 @@ tools = [
     expense_trends,
     predict_future_expenses,
     compare_periods_expenses,
+    greetings,
     unknown,
 ]

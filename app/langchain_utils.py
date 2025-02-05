@@ -88,6 +88,8 @@ def process_text_request(user_input: str):
 
     if intent == "create_expense":
         return {"intent": intent, "result": parse_expense_input(parsed_input)}
+    elif intent == "greetings":
+        return {"intent": intent, "result": greetings.invoke({})}
     elif intent in f"{tools}":
         return {
             "intent": intent,
