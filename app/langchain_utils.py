@@ -6,16 +6,21 @@ from app.tool_factory import tools
 from app.db_utils import save_to_db
 from langsmith import traceable
 from langchain_groq import ChatGroq
+from langchain_deepseek import ChatDeepSeek
 from langchain_core.messages import HumanMessage
 from app.tool_factory import *
 
-API_KEY = os.getenv("GROQ_API_KEY")
+API_KEY_GROQ = os.getenv("GROQ_API_KEY")
+API_KEY_DEEPSEEK = os.getenv("DEEPSEEK_API_KEY")
 
-llm = ChatGroq(api_key=API_KEY, model="deepseek-r1-distill-llama-70b", temperature=0.1)
+# llm = ChatDeepSeek(api_key=API_KEY_DEEPSEEK, model="deepseek-chat", temperature=0.1)
+llm = ChatGroq(
+    api_key=API_KEY_GROQ, model="deepseek-r1-distill-llama-70b", temperature=0.1
+)
 llm_with_tools = llm.bind_tools(tools)
 
 llm_vision = ChatGroq(
-    api_key=API_KEY, model="llama-3.2-90b-vision-preview", temperature=0.1
+    api_key=API_KEY_GROQ, model="llama-3.2-90b-vision-preview", temperature=0.1
 )
 
 
@@ -88,7 +93,6 @@ def process_text_request(user_input: str):
         "\n- Don't use these instructions, this is only for reference"
         "\n- Also ignore meaningless/irrelevant words for expense"
     )
-    
 
     intent_response = llm_with_tools.invoke([HumanMessage(user_input_with_date)])
 
