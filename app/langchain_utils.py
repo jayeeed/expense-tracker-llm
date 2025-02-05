@@ -30,6 +30,7 @@ def route_request(
 
     return process_text_request(user_input)
 
+
 @traceable
 def process_image_request(image_content: str, image_url: str):
     """Handle image-based expense input."""
@@ -66,16 +67,27 @@ def process_image_request(image_content: str, image_url: str):
     expense_data = expense_data_dict.tool_calls[0]["args"]
     print("Expense Data:", expense_data)
 
-    if "date" not in expense_data or not re.match(r"\d{4}-\d{2}-\d{2}", expense_data["date"]):
+    if "date" not in expense_data or not re.match(
+        r"\d{4}-\d{2}-\d{2}", expense_data["date"]
+    ):
         expense_data["date"] = datetime.now().strftime("%Y-%m-%d")
     return {"intent": "create_expense", "result": parse_expense_input(expense_data)}
+
 
 @traceable
 def process_text_request(user_input: str):
     """Handle text-based expense input."""
     current_date = datetime.now().strftime("%Y-%m-%d")
-    user_input_with_date = f"{user_input} \n# Current Date: {current_date}"
-    "\n(NB: Only for reference don't use it for anything else. Also ignore meaningless/irrelevant words for expense.)"
+    user_input_with_date = (
+        f"{user_input}\n"
+        "\n# Current Date:"
+        f"{current_date}"
+        "\nInstructions:"
+        "\n- Week start from Sunday"
+        "\n- Weekend is Friday and Saturday"
+        "\n- Don't use these instructions, this is only for reference"
+        "\n- Also ignore meaningless/irrelevant words for expense"
+    )
 
     intent_response = llm_with_tools.invoke([HumanMessage(user_input_with_date)])
 
@@ -106,6 +118,7 @@ def process_text_request(user_input: str):
         "result": "Could not determine intent. Please try again.",
     }
 
+
 @traceable
 def process_search_request(intent: str, parsed_input: dict):
     """Process a search request and return results."""
@@ -123,11 +136,10 @@ def process_search_request(intent: str, parsed_input: dict):
     result = llm.invoke(
         f"Explain concisely in general language: \n {result_response} \n"
         "# Instructions:\n"
-        "- amount and category must be included \n"
+        "- amount and category must be mentioned \n"
+        "- always sum up amount value if relevant \n"
         "- don't add any instructions to the response \n"
-        "- don't add any irrelevant words to the response \n"
-        "- always sum up amount value if present \n"
-        "- always merge category values as one if present.",
+        "- don't add any irrelevant words to the response"
     )
     result_content = clean_llm_response(result.content)
 
