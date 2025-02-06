@@ -19,6 +19,8 @@ class Category(Enum):
     ELECTRONICS = "electronics"
     HEALTH = "health"
     MISCELLANEOUS = "miscellaneous"
+    AUTOMOBILE = "automobile"
+    OTHER = "other"
     NONE = "none"
 
 
