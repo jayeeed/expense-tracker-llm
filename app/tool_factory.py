@@ -357,17 +357,17 @@ def compare_periods_expenses(
 
 @tool("greetings", response_format="content")
 def greetings() -> str:
-    """Greet the user based on the current time of day and invite them to share their expenses."""
+    """Greet the user based on the current time of day and invite them to create or find expenses."""
 
     current_hour = datetime.now().hour
     if current_hour < 12:
-        greeting = "Good morning!"
+        greeting = "Good morning"
     elif current_hour < 17:
-        greeting = "Good afternoon!"
+        greeting = "Good afternoon"
     else:
-        greeting = "Good evening!"
+        greeting = "Good evening"
 
-    return greeting + " Please tell me about your expenses."
+    return greeting + ", Boss! You can create or find expenses."
 
 
 @tool("unknown", response_format="content")
