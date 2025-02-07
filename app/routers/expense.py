@@ -18,7 +18,7 @@ async def process_image(image_file: UploadFile, max_size: tuple = (800, 800)) ->
 
     # Convert to RGB if necessary (to handle PNGs with transparency)
     if image.mode in ("RGBA", "P"):
-        image = image.convert("RGB")
+        image = image.convert("L")
 
     # Resize while maintaining aspect ratio
     image.thumbnail(max_size)
