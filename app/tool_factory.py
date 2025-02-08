@@ -137,16 +137,16 @@ def expense_anomalies(threshold: float = 2.0) -> dict:
 
 
 @tool("recurring_expenses", response_format="content")
-def recurring_expenses(min_count: int = 3) -> dict:
+def recurring_expenses() -> dict:
     """
     Detect recurring expenses that appear at least `min_count` times.
     """
 
     query = f"""
-        SELECT description, category, COUNT(*) as occurrences, SUM(amount) as total_spent
+        SELECT category, COUNT(*) as occurrences, SUM(amount) as total_spent
         FROM expenses
-        GROUP BY description, category
-        HAVING COUNT(*) >= {min_count}
+        GROUP BY category
+        HAVING COUNT(*) >= 5
         ORDER BY occurrences DESC
     """
 
@@ -357,6 +357,67 @@ def compare_periods_expenses(
     }
 
 
+@tool("recent_expenses", response_format="content")
+def recent_expenses(limit: int) -> dict:
+    """Return the most recent expenses."""
+
+    query = f"SELECT * FROM expenses ORDER BY date DESC LIMIT {limit}"
+
+    return db_query(query)
+
+
+@tool("suggest_savings", response_format="content")
+def suggest_savings() -> str:
+    """
+    Suggest which expense category to reduce spending on in order to save money.
+    This tool calculates the average expense per category and identifies the category
+    with the highest average expense.
+    """
+    query = """
+        SELECT category, AVG(amount) AS avg_spent
+        FROM expenses
+        GROUP BY category
+        ORDER BY avg_spent DESC
+        LIMIT 1
+    """
+    result = db_query(query)
+
+    if result and result[0]["avg_spent"] is not None:
+        highest_category = result[0]["category"]
+        highest_avg = float(result[0]["avg_spent"])
+        return (
+            f"To save money, consider reducing your spending on the '{highest_category}' category. "
+            f"Your average expense in this category is {highest_avg:.2f}, which is the highest among all categories."
+        )
+    else:
+        return "Not enough data to provide a savings suggestion."
+
+
+@tool("encourage_spending", response_format="content")
+def encourage_spending() -> dict:
+    """Encourage the user to increase their expenses on specific categories."""
+
+    query = """
+        SELECT category, AVG(amount) AS avg_spent
+        FROM expenses
+        GROUP BY category
+        ORDER BY avg_spent ASC
+        LIMIT 1
+    """
+
+    result = db_query(query)
+
+    if result and result[0]["avg_spent"] is not None:
+        lowest_category = result[0]["category"]
+        lowest_avg = float(result[0]["avg_spent"])
+        return (
+            f"Consider increasing your spending on the '{lowest_category}' category. "
+            f"Your average expense in this category is {lowest_avg:.2f}, which is the lowest among all categories."
+        )
+    else:
+        return "Not enough data to provide an encouragement."
+
+
 @tool("greetings", response_format="content")
 def greetings() -> str:
     """Greet the user based on the current time of day and invite them to create or find expenses."""
@@ -398,6 +459,9 @@ tools = [
     expense_trends,
     predict_future_expenses,
     compare_periods_expenses,
+    recent_expenses,
+    suggest_savings,
+    encourage_spending,
     greetings,
     unknown,
 ]

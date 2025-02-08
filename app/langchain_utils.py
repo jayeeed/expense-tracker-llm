@@ -6,17 +6,14 @@ from app.tool_factory import tools
 from app.db_utils import save_to_db
 from langsmith import traceable
 from langchain_groq import ChatGroq
-from langchain_deepseek import ChatDeepSeek
-from langchain_core.messages import HumanMessage
+from langchain.chat_models import init_chat_model
 from app.tool_factory import *
 
 API_KEY_GROQ = os.getenv("GROQ_API_KEY")
-API_KEY_DEEPSEEK = os.getenv("DEEPSEEK_API_KEY")
 
-# llm = ChatDeepSeek(api_key=API_KEY_DEEPSEEK, model="deepseek-chat", temperature=0.1)
-llm = ChatGroq(
-    api_key=API_KEY_GROQ, model="deepseek-r1-distill-llama-70b", temperature=0.1
-)
+
+llm = init_chat_model("llama-3.3-70b-versatile", model_provider="groq")
+
 llm_with_tools = llm.bind_tools(tools)
 
 llm_vision = ChatGroq(
@@ -101,7 +98,8 @@ def process_text_request(user_input: str):
         "\n- Also ignore meaningless/irrelevant words for expense"
     )
 
-    intent_response = llm_with_tools.invoke([HumanMessage(user_input_with_date)])
+    intent_response = llm_with_tools.invoke(user_input_with_date)
+    print("Intent Response:", intent_response)
 
     if not intent_response.tool_calls or len(intent_response.tool_calls) == 0:
         return {
@@ -109,26 +107,37 @@ def process_text_request(user_input: str):
             "result": "Could not determine intent. Please refine your input.",
         }
 
-    intent = intent_response.tool_calls[0]["name"]
-    parsed_input = intent_response.tool_calls[0]["args"]
+    # Process all tool calls returned by the LLM.
+    results = []
 
-    print("Intent:", intent)
-    print("Parsed Input:", parsed_input)
+    for tool_call in intent_response.tool_calls:
+        intent = tool_call["name"]
+        parsed_input = tool_call["args"]
 
-    if intent == "create_expense":
-        return {"intent": intent, "result": parse_expense_input(parsed_input)}
-    elif intent == "greetings":
-        return {"intent": intent, "result": greetings.invoke({})}
-    elif intent in f"{tools}":
-        return {
-            "intent": intent,
-            "result": process_search_request(intent, parsed_input),
-        }
+        print("Intent:", intent)
+        print("Parsed Input:", parsed_input)
 
-    return {
-        "intent": "unknown",
-        "result": "Could not determine intent. Please try again.",
-    }
+        if intent == "create_expense":
+            result = parse_expense_input(parsed_input)
+        elif intent == "greetings":
+            result = greetings.invoke({})
+        elif intent in [tool.name for tool in tools]:
+            result = process_search_request(intent, parsed_input)
+        else:
+            result = f"Could not determine intent for {intent}. Please try again."
+
+        results.append({"intent": intent, "result": result})
+
+    if len(results) == 1:
+        return results[0]
+    else:
+        results = llm.invoke(
+            f"Merge all tool calls into single meaningful response mentioning all tool calls: \n {results} \n"
+            "\nInstructions:"
+            "\n- Don't use these instructions, this is only for reference"
+            "\n- Also ignore meaningless/irrelevant words for expense"
+        )
+        return {"intent": "multi", "results": results.content}
 
 
 @traceable
@@ -149,9 +158,9 @@ def process_search_request(intent: str, parsed_input: dict):
         f"Explain concisely in general language: \n {result_response} \n"
         "# Instructions:\n"
         "- amount and category must be mentioned \n"
-        "- always sum up amount value if relevant \n"
         "- don't add any instructions to the response \n"
         "- don't add any irrelevant words to the response"
+        "- if multiple tools are called, try to merge them into a single response according to the user intent"
     )
     result_content = clean_llm_response(result.content)
 
