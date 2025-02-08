@@ -69,6 +69,13 @@ def process_image_request(image_content: str, image_url: str):
 
     expense_data_unstruct = llm_vision.invoke(input_data)
     expense_data_dict = llm_with_tools.invoke(expense_data_unstruct.content)
+
+    if (
+        not expense_data_dict.tool_calls
+        or "args" not in expense_data_dict.tool_calls[0]
+    ):
+        return {"intent": "wrong_receipt", "result": "Please upload a valid receipt."}
+
     expense_data = expense_data_dict.tool_calls[0]["args"]
     print("Expense Data:", expense_data)
 
