@@ -99,7 +99,6 @@ def process_text_request(user_input: str):
     )
 
     intent_response = llm_with_tools.invoke(user_input_with_date)
-    print("Intent Response:", intent_response)
 
     if not intent_response.tool_calls or len(intent_response.tool_calls) == 0:
         return {
@@ -122,11 +121,11 @@ def process_text_request(user_input: str):
         elif intent == "greetings":
             result = greetings.invoke({})
         elif intent in [tool.name for tool in tools]:
-            result = process_search_request(intent, parsed_input)
+            result = process_search_request(intent, user_input, parsed_input)
         else:
             result = f"Could not determine intent for {intent}. Please try again."
 
-        results.append({"intent": intent, "result": result})
+        results.append({"user_input": user_input, "intent": intent, "result": result})
 
     if len(results) == 1:
         return results[0]
@@ -141,7 +140,7 @@ def process_text_request(user_input: str):
 
 
 @traceable
-def process_search_request(intent: str, parsed_input: dict):
+def process_search_request(intent: str, user_input: str, parsed_input: dict):
     """Process a search request and return results."""
 
     tool_function = next((tool for tool in tools if tool.name == intent), None)
@@ -156,10 +155,11 @@ def process_search_request(intent: str, parsed_input: dict):
 
     result = llm.invoke(
         f"Explain concisely in general language: \n {result_response} \n"
+        f"\nNote: initial user query: {user_input}"
         "# Instructions:\n"
         "- amount and category must be mentioned \n"
         "- don't add any instructions to the response \n"
-        "- don't add any irrelevant words to the response"
+        "- don't add any irrelevant words to the response\n"
         "- if multiple tools are called, try to merge them into a single response according to the user intent"
     )
     result_content = clean_llm_response(result.content)
