@@ -24,25 +24,6 @@ class Category(Enum):
     NONE = "none"
 
 
-# # 1. Create the expenses table
-# @tool
-# def create_expenses_table() -> Dict[str, Any]:
-#     """
-#     Creates the expenses table if it does not already exist.
-#     """
-#     query = """
-#     CREATE TABLE IF NOT EXISTS expenses (
-#         id VARCHAR(255) PRIMARY KEY,
-#         date DATE,
-#         amount REAL,
-#         category VARCHAR(100),
-#         description TEXT
-#     );
-#     """
-#     db_query(query)
-#     return {"status": "expenses table created (if it did not already exist)"}
-
-
 # 2. Insert a new expense record
 @tool
 def create_expense(
@@ -71,8 +52,7 @@ def get_all_expenses() -> Dict[str, Any]:
     """
     query = "SELECT * FROM expenses"
 
-    result = db_query(query)
-    return {"expenses": result}
+    return db_query(query)
 
 
 # 4. Filter expenses by category
@@ -83,8 +63,7 @@ def get_expenses_by_category(category: Category) -> Dict[str, Any]:
     """
     query = f"SELECT * FROM expenses WHERE category = '{category.value}'"
 
-    result = db_query(query)
-    return {"expenses": result}
+    return db_query(query)
 
 
 # 5. Filter expenses by a date range
@@ -95,20 +74,18 @@ def get_expenses_by_date_range(start_date: str, end_date: str) -> Dict[str, Any]
     """
     query = f"SELECT * FROM expenses WHERE date BETWEEN '{start_date}' AND '{end_date}'"
 
-    result = db_query(query)
-    return {"expenses": result}
+    return db_query(query)
 
 
-# 6. Filter expenses above a given amount
+# 6. Filter expenses above a given amount in descending order
 @tool
 def get_expenses_above_amount(min_amount: float) -> Dict[str, Any]:
     """
-    Returns expenses with amount greater than min_amount.
+    Returns expenses with amount greater than min_amount in descending order.
     """
-    query = f"SELECT * FROM expenses WHERE amount > {min_amount}"
+    query = f"SELECT * FROM expenses WHERE amount > {min_amount} ORDER BY amount DESC"
 
-    result = db_query(query)
-    return {"expenses": result}
+    return db_query(query)
 
 
 # 7. Sort expenses by a specified column and order
@@ -126,8 +103,7 @@ def get_sorted_expenses(order_by: str = "date", order: str = "DESC") -> Dict[str
         return {"error": "Invalid order"}
     query = f"SELECT * FROM expenses ORDER BY {order_by} {order}"
 
-    result = db_query(query)
-    return {"expenses": result}
+    return db_query(query)
 
 
 # 8. Limit the number of returned expense records
@@ -146,8 +122,7 @@ def get_limited_expenses(
         return {"error": "Invalid order"}
     query = f"SELECT * FROM expenses ORDER BY {order_by} {order} LIMIT {limit}"
 
-    result = db_query(query)
-    return {"expenses": result}
+    return db_query(query)
 
 
 # 9. Aggregate: Sum of amounts by category
@@ -162,8 +137,7 @@ def aggregate_sum_by_category() -> Dict[str, Any]:
     GROUP BY category
     """
 
-    result = db_query(query)
-    return {"aggregates": result}
+    return db_query(query)
 
 
 # 10. Aggregate: Count expenses by category
@@ -177,8 +151,8 @@ def count_expenses_by_category() -> Dict[str, Any]:
     FROM expenses
     GROUP BY category
     """
-    result = db_query(query)
-    return {"counts": result}
+    
+    return db_query(query)
 
 
 # 11. Aggregate with HAVING: Only include categories whose sum exceeds a given value
@@ -193,8 +167,8 @@ def aggregate_with_having(min_total: float) -> Dict[str, Any]:
     GROUP BY category
     HAVING SUM(amount) > {min_total}
     """
-    result = db_query(query)
-    return {"aggregates": result}
+    
+    return db_query(query)
 
 
 # 12. Subquery: Select expenses with amount above the overall average
@@ -208,8 +182,8 @@ def get_expenses_above_average() -> Dict[str, Any]:
     FROM expenses
     WHERE amount > (SELECT AVG(amount) FROM expenses)
     """
-    result = db_query(query)
-    return {"expenses": result}
+    
+    return db_query(query)
 
 
 # 13. CTE: Use a Common Table Expression to filter by aggregated totals
@@ -229,8 +203,8 @@ def get_expenses_with_cte(min_total: float) -> Dict[str, Any]:
     FROM category_totals
     WHERE total_amount > {min_total}
     """
-    result = db_query(query)
-    return {"results": result}
+
+    return db_query(query)
 
 
 # 14. Window Function: Running total per category
@@ -244,39 +218,8 @@ def get_expenses_with_running_total() -> Dict[str, Any]:
            SUM(amount) OVER (PARTITION BY category ORDER BY date) AS running_total
     FROM expenses
     """
-    result = db_query(query)
-    return {"expenses": result}
 
-
-# 15. Update: Modify expense amounts by a multiplier for a given category
-@tool
-def update_expenses_for_category(
-    category: Category, multiplier: float
-) -> Dict[str, Any]:
-    """
-    Updates expenses for a given category by multiplying the amount by multiplier.
-    """
-    query = f"""
-    UPDATE expenses
-    SET amount = amount * {multiplier}
-    WHERE category = '{category.value}'
-    """
-    db_query(query)
-    return {"status": f"Expenses for category '{category.value}' updated."}
-
-
-# 16. Delete: Remove expenses before a certain date
-@tool
-def delete_expenses_before_date(date: str) -> Dict[str, Any]:
-    """
-    Deletes expenses with a date earlier than the specified date.
-    """
-    query = f"""
-    DELETE FROM expenses
-    WHERE date < '{date}'
-    """
-    db_query(query)
-    return {"status": f"Expenses before {date} deleted."}
+    return db_query(query)
 
 
 # 17. Distinct: Get unique expense categories
@@ -286,8 +229,8 @@ def get_distinct_categories() -> Dict[str, Any]:
     Returns a list of distinct expense categories.
     """
     query = "SELECT DISTINCT category FROM expenses"
-    result = db_query(query)
-    return {"categories": result}
+
+    return db_query(query)
 
 
 # 18. UNION: Combine expenses from two different categories
@@ -303,37 +246,23 @@ def union_expenses_by_categories(
     UNION
     SELECT * FROM expenses WHERE category = '{category2.value}'
     """
-    result = db_query(query)
-    return {"expenses": result}
+
+    return db_query(query)
 
 
-# # 19. JSON Aggregation: Return all expenses as a JSON array
-# @tool
-# def json_aggregate_expenses() -> Dict[str, Any]:
-#     """
-#     Aggregates all expense records into a JSON array.
-#     """
-#     query = """
-#     SELECT json_agg(row_to_json(t))
-#     FROM expenses t
-#     """
-#     result = db_query(query)
-#     return {"json_aggregate": result}
-
-
-# 20. Full-Text Search: Search expenses by description using PostgreSQL full-text search
+# 20. Full-Text Search: Search expenses by description using a LIKE query
 @tool
 def full_text_search_expenses(search_term: str) -> Dict[str, Any]:
     """
-    Returns expenses where the description matches the full-text search query.
+    Returns expenses where the description matches the search term using a LIKE query.
     """
     query = f"""
     SELECT *
     FROM expenses
-    WHERE to_tsvector('english', description) @@ plainto_tsquery('english', '{search_term}')
+    WHERE description LIKE '%{search_term}%'
     """
-    result = db_query(query)
-    return {"expenses": result}
+
+    return db_query(query)
 
 
 # 21. Advanced Example: Using a CASE expression for conditional output
@@ -355,8 +284,8 @@ def advanced_case_expenses() -> Dict[str, Any]:
            END AS expenses_type
     FROM expenses
     """
-    result = db_query(query)
-    return {"expenses": result}
+
+    return db_query(query)
 
 
 # 22. Self-Join: Compare each expense to the previous day's expense
@@ -372,8 +301,8 @@ def self_join_previous_day_expenses() -> Dict[str, Any]:
     LEFT JOIN expenses b
       ON b.date = a.date - INTERVAL '1 day'
     """
-    result = db_query(query)
-    return {"expenses": result}
+
+    return db_query(query)
 
 
 @tool
@@ -410,11 +339,8 @@ tools = [
     get_expenses_above_average,
     get_expenses_with_cte,
     get_expenses_with_running_total,
-    update_expenses_for_category,
-    delete_expenses_before_date,
     get_distinct_categories,
     union_expenses_by_categories,
-    # json_aggregate_expenses,
     full_text_search_expenses,
     advanced_case_expenses,
     self_join_previous_day_expenses,
