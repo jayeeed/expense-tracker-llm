@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, Any, Dict, List
 from langchain_core.tools import tool
 from app.db_utils import *
 import os
@@ -24,6 +24,26 @@ class Category(Enum):
     NONE = "none"
 
 
+# # 1. Create the expenses table
+# @tool
+# def create_expenses_table() -> Dict[str, Any]:
+#     """
+#     Creates the expenses table if it does not already exist.
+#     """
+#     query = """
+#     CREATE TABLE IF NOT EXISTS expenses (
+#         id VARCHAR(255) PRIMARY KEY,
+#         date DATE,
+#         amount REAL,
+#         category VARCHAR(100),
+#         description TEXT
+#     );
+#     """
+#     db_query(query)
+#     return {"status": "expenses table created (if it did not already exist)"}
+
+
+# 2. Insert a new expense record
 @tool
 def create_expense(
     id: str,
@@ -43,54 +63,322 @@ def create_expense(
     }
 
 
+# 3. Select all expenses
 @tool
-def search_by_fields(
-    date: Optional[str] = None,
-    from_date: Optional[str] = None,
-    to_date: Optional[str] = None,
-    amount: Optional[float] = None,
-    category: Optional[str] = None,
-    operation: Optional[str] = "*",
-) -> str:
-    """Search expenses by category, amount, or date and perform SQL operations (e.g., sum(amount), avg(amount), min(amount), max(amount)) on the result set in PostgreSQL."""
+def get_all_expenses() -> Dict[str, Any]:
+    """
+    Returns all expense records.
+    """
+    query = "SELECT * FROM expenses"
 
-    query = f"SELECT {operation} FROM expenses WHERE "
-
-    conditions = []
-
-    if date:
-        conditions.append(f"date = '{date}'")
-    if from_date and to_date:
-        conditions.append(f"date::DATE BETWEEN '{from_date}' AND '{to_date}'")
-    if category:
-        conditions.append(f"LOWER(category) = '{category}'")
-    if amount:
-        conditions.append(f"amount = {amount} ORDER BY date desc")
-
-    if not conditions:
-        return "No search criteria provided."
-    query += " AND ".join(conditions)
-
-    print("query:", query)
-    return db_query(query)
+    result = db_query(query)
+    return {"expenses": result}
 
 
+# 4. Filter expenses by category
 @tool
-def sum_avg_min_max(category: str, operation: str) -> str:
-    """Sum, average, min, or max expenses by category."""
+def get_expenses_by_category(category: Category) -> Dict[str, Any]:
+    """
+    Returns expenses filtered by category.
+    """
+    query = f"SELECT * FROM expenses WHERE category = '{category.value}'"
 
-    query = (
-        f"SELECT {operation}(amount) FROM expenses WHERE LOWER(category) = '{category}'"
+    result = db_query(query)
+    return {"expenses": result}
+
+
+# 5. Filter expenses by a date range
+@tool
+def get_expenses_by_date_range(start_date: str, end_date: str) -> Dict[str, Any]:
+    """
+    Returns expenses that fall between start_date and end_date.
+    """
+    query = f"SELECT * FROM expenses WHERE date BETWEEN '{start_date}' AND '{end_date}'"
+
+    result = db_query(query)
+    return {"expenses": result}
+
+
+# 6. Filter expenses above a given amount
+@tool
+def get_expenses_above_amount(min_amount: float) -> Dict[str, Any]:
+    """
+    Returns expenses with amount greater than min_amount.
+    """
+    query = f"SELECT * FROM expenses WHERE amount > {min_amount}"
+
+    result = db_query(query)
+    return {"expenses": result}
+
+
+# 7. Sort expenses by a specified column and order
+@tool
+def get_sorted_expenses(order_by: str = "date", order: str = "DESC") -> Dict[str, Any]:
+    """
+    Returns expenses sorted by the specified column and order.
+    Only allows ordering by specific columns.
+    """
+    allowed_columns = {"date", "amount", "category", "description"}
+    if order_by not in allowed_columns:
+        return {"error": "Invalid order_by column"}
+    order = order.upper()
+    if order not in {"ASC", "DESC"}:
+        return {"error": "Invalid order"}
+    query = f"SELECT * FROM expenses ORDER BY {order_by} {order}"
+
+    result = db_query(query)
+    return {"expenses": result}
+
+
+# 8. Limit the number of returned expense records
+@tool
+def get_limited_expenses(
+    limit: int, order_by: str = "date", order: str = "DESC"
+) -> Dict[str, Any]:
+    """
+    Returns a limited number of expense records.
+    """
+    allowed_columns = {"date", "amount", "category", "description"}
+    if order_by not in allowed_columns:
+        return {"error": "Invalid order_by column"}
+    order = order.upper()
+    if order not in {"ASC", "DESC"}:
+        return {"error": "Invalid order"}
+    query = f"SELECT * FROM expenses ORDER BY {order_by} {order} LIMIT {limit}"
+
+    result = db_query(query)
+    return {"expenses": result}
+
+
+# 9. Aggregate: Sum of amounts by category
+@tool
+def aggregate_sum_by_category() -> Dict[str, Any]:
+    """
+    Returns the sum of amounts for each category.
+    """
+    query = """
+    SELECT category, SUM(amount) AS total_amount
+    FROM expenses
+    GROUP BY category
+    """
+
+    result = db_query(query)
+    return {"aggregates": result}
+
+
+# 10. Aggregate: Count expenses by category
+@tool
+def count_expenses_by_category() -> Dict[str, Any]:
+    """
+    Returns the count of expenses for each category.
+    """
+    query = """
+    SELECT category, COUNT(*) AS expenses_count
+    FROM expenses
+    GROUP BY category
+    """
+    result = db_query(query)
+    return {"counts": result}
+
+
+# 11. Aggregate with HAVING: Only include categories whose sum exceeds a given value
+@tool
+def aggregate_with_having(min_total: float) -> Dict[str, Any]:
+    """
+    Returns categories where the total amount exceeds min_total.
+    """
+    query = f"""
+    SELECT category, SUM(amount) AS total_amount
+    FROM expenses
+    GROUP BY category
+    HAVING SUM(amount) > {min_total}
+    """
+    result = db_query(query)
+    return {"aggregates": result}
+
+
+# 12. Subquery: Select expenses with amount above the overall average
+@tool
+def get_expenses_above_average() -> Dict[str, Any]:
+    """
+    Returns expenses where the amount is above the overall average.
+    """
+    query = """
+    SELECT *
+    FROM expenses
+    WHERE amount > (SELECT AVG(amount) FROM expenses)
+    """
+    result = db_query(query)
+    return {"expenses": result}
+
+
+# 13. CTE: Use a Common Table Expression to filter by aggregated totals
+@tool
+def get_expenses_with_cte(min_total: float) -> Dict[str, Any]:
+    """
+    Returns categories (and their totals) where the total amount is above min_total,
+    using a CTE.
+    """
+    query = f"""
+    WITH category_totals AS (
+        SELECT category, SUM(amount) AS total_amount
+        FROM expenses
+        GROUP BY category
     )
+    SELECT *
+    FROM category_totals
+    WHERE total_amount > {min_total}
+    """
+    result = db_query(query)
+    return {"results": result}
 
-    print("query:", query)
-    return db_query(query)
+
+# 14. Window Function: Running total per category
+@tool
+def get_expenses_with_running_total() -> Dict[str, Any]:
+    """
+    Returns expenses along with a running total per category.
+    """
+    query = """
+    SELECT date, amount, category, description,
+           SUM(amount) OVER (PARTITION BY category ORDER BY date) AS running_total
+    FROM expenses
+    """
+    result = db_query(query)
+    return {"expenses": result}
+
+
+# 15. Update: Modify expense amounts by a multiplier for a given category
+@tool
+def update_expenses_for_category(
+    category: Category, multiplier: float
+) -> Dict[str, Any]:
+    """
+    Updates expenses for a given category by multiplying the amount by multiplier.
+    """
+    query = f"""
+    UPDATE expenses
+    SET amount = amount * {multiplier}
+    WHERE category = '{category.value}'
+    """
+    db_query(query)
+    return {"status": f"Expenses for category '{category.value}' updated."}
+
+
+# 16. Delete: Remove expenses before a certain date
+@tool
+def delete_expenses_before_date(date: str) -> Dict[str, Any]:
+    """
+    Deletes expenses with a date earlier than the specified date.
+    """
+    query = f"""
+    DELETE FROM expenses
+    WHERE date < '{date}'
+    """
+    db_query(query)
+    return {"status": f"Expenses before {date} deleted."}
+
+
+# 17. Distinct: Get unique expense categories
+@tool
+def get_distinct_categories() -> Dict[str, Any]:
+    """
+    Returns a list of distinct expense categories.
+    """
+    query = "SELECT DISTINCT category FROM expenses"
+    result = db_query(query)
+    return {"categories": result}
+
+
+# 18. UNION: Combine expenses from two different categories
+@tool
+def union_expenses_by_categories(
+    category1: Category, category2: Category
+) -> Dict[str, Any]:
+    """
+    Returns expenses for two categories combined using UNION.
+    """
+    query = f"""
+    SELECT * FROM expenses WHERE category = '{category1.value}'
+    UNION
+    SELECT * FROM expenses WHERE category = '{category2.value}'
+    """
+    result = db_query(query)
+    return {"expenses": result}
+
+
+# # 19. JSON Aggregation: Return all expenses as a JSON array
+# @tool
+# def json_aggregate_expenses() -> Dict[str, Any]:
+#     """
+#     Aggregates all expense records into a JSON array.
+#     """
+#     query = """
+#     SELECT json_agg(row_to_json(t))
+#     FROM expenses t
+#     """
+#     result = db_query(query)
+#     return {"json_aggregate": result}
+
+
+# 20. Full-Text Search: Search expenses by description using PostgreSQL full-text search
+@tool
+def full_text_search_expenses(search_term: str) -> Dict[str, Any]:
+    """
+    Returns expenses where the description matches the full-text search query.
+    """
+    query = f"""
+    SELECT *
+    FROM expenses
+    WHERE to_tsvector('english', description) @@ plainto_tsquery('english', '{search_term}')
+    """
+    result = db_query(query)
+    return {"expenses": result}
+
+
+# 21. Advanced Example: Using a CASE expression for conditional output
+@tool
+def advanced_case_expenses() -> Dict[str, Any]:
+    """
+    Returns expenses with an additional column 'expenses_type' that labels
+    the expenses as Credit, Debit, or Neutral based on the amount.
+    """
+    query = """
+    SELECT date,
+           amount,
+           category,
+           description,
+           CASE 
+               WHEN amount > 0 THEN 'Credit'
+               WHEN amount < 0 THEN 'Debit'
+               ELSE 'Neutral'
+           END AS expenses_type
+    FROM expenses
+    """
+    result = db_query(query)
+    return {"expenses": result}
+
+
+# 22. Self-Join: Compare each expense to the previous day's expense
+@tool
+def self_join_previous_day_expenses() -> Dict[str, Any]:
+    """
+    Returns expenses along with the previous day's amount (if any) by self-joining the table.
+    """
+    query = """
+    SELECT a.date, a.amount, a.category, a.description,
+           b.amount AS previous_day_amount
+    FROM expenses a
+    LEFT JOIN expenses b
+      ON b.date = a.date - INTERVAL '1 day'
+    """
+    result = db_query(query)
+    return {"expenses": result}
 
 
 @tool
 def greetings() -> str:
     """Greet the user based on the current time of day and invite them to create or find expenses."""
-
     current_hour = datetime.now().hour
     if current_hour < 12:
         greeting = "Good morning"
@@ -105,14 +393,31 @@ def greetings() -> str:
 @tool
 def unknown() -> str:
     """Handle unknown intents."""
-
     return "Could not determine intent. Please refine your input."
 
 
 tools = [
     create_expense,
-    search_by_fields,
-    # sum_avg_min_max,
+    get_all_expenses,
+    get_expenses_by_category,
+    get_expenses_by_date_range,
+    get_expenses_above_amount,
+    get_sorted_expenses,
+    get_limited_expenses,
+    aggregate_sum_by_category,
+    count_expenses_by_category,
+    aggregate_with_having,
+    get_expenses_above_average,
+    get_expenses_with_cte,
+    get_expenses_with_running_total,
+    update_expenses_for_category,
+    delete_expenses_before_date,
+    get_distinct_categories,
+    union_expenses_by_categories,
+    # json_aggregate_expenses,
+    full_text_search_expenses,
+    advanced_case_expenses,
+    self_join_previous_day_expenses,
     greetings,
     unknown,
 ]

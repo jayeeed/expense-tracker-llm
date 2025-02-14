@@ -2,6 +2,8 @@ import os
 import re
 import uuid
 from datetime import datetime
+
+import groq
 from app.tool_factory import tools
 from app.db_utils import save_to_db
 from langsmith import traceable
@@ -11,9 +13,7 @@ from app.tool_factory import *
 
 API_KEY_GROQ = os.getenv("GROQ_API_KEY")
 
-
 llm = init_chat_model("llama-3.3-70b-versatile", model_provider="groq")
-
 llm_with_tools = llm.bind_tools(tools)
 
 llm_vision = ChatGroq(
@@ -131,12 +131,12 @@ def process_text_request(user_input: str):
         return results[0]
     else:
         results = llm.invoke(
-            f"Merge all tool calls into single meaningful response mentioning all tool calls: \n {results} \n"
+            f"Merge all tool calls into single meaningful concise response mentioning all tool calls: \n {results} \n"
             "\nInstructions:"
             "\n- Don't use these instructions, this is only for reference"
             "\n- Also ignore meaningless/irrelevant words for expense"
         )
-        return {"intent": "multi", "results": results.content}
+        return {"intent": "multi", "result": results.content}
 
 
 @traceable
@@ -155,7 +155,7 @@ def process_search_request(intent: str, user_input: str, parsed_input: dict):
 
     result = llm.invoke(
         f"Explain concisely in general language: \n {result_response} \n"
-        f"\nNote: initial user query: {user_input}"
+        f"\nNote: initial user query: '{user_input}'. \nReponse according to the user input."
         "# Instructions:\n"
         "- amount and category must be mentioned \n"
         "- don't add any instructions to the response \n"
