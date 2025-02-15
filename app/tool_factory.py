@@ -52,6 +52,8 @@ def get_all_expenses() -> Dict[str, Any]:
     """
     query = "SELECT * FROM expenses"
 
+    print("SQL:", query)
+
     return db_query(query)
 
 
@@ -62,6 +64,8 @@ def get_expenses_by_category(category: Category) -> Dict[str, Any]:
     Returns expenses filtered by category.
     """
     query = f"SELECT * FROM expenses WHERE category = '{category.value}'"
+
+    print("SQL:", query)
 
     return db_query(query)
 
@@ -74,6 +78,8 @@ def get_expenses_by_date_range(start_date: str, end_date: str) -> Dict[str, Any]
     """
     query = f"SELECT * FROM expenses WHERE date BETWEEN '{start_date}' AND '{end_date}'"
 
+    print("SQL:", query)
+
     return db_query(query)
 
 
@@ -84,6 +90,8 @@ def get_expenses_above_amount(min_amount: float) -> Dict[str, Any]:
     Returns expenses with amount greater than min_amount in descending order.
     """
     query = f"SELECT * FROM expenses WHERE amount > {min_amount} ORDER BY amount DESC"
+
+    print("SQL:", query)
 
     return db_query(query)
 
@@ -102,6 +110,8 @@ def get_sorted_expenses(order_by: str = "date", order: str = "DESC") -> Dict[str
     if order not in {"ASC", "DESC"}:
         return {"error": "Invalid order"}
     query = f"SELECT * FROM expenses ORDER BY {order_by} {order}"
+
+    print("SQL:", query)
 
     return db_query(query)
 
@@ -122,6 +132,8 @@ def get_limited_expenses(
         return {"error": "Invalid order"}
     query = f"SELECT * FROM expenses ORDER BY {order_by} {order} LIMIT {limit}"
 
+    print("SQL:", query)
+
     return db_query(query)
 
 
@@ -137,6 +149,8 @@ def aggregate_sum_by_category() -> Dict[str, Any]:
     GROUP BY category
     """
 
+    print("SQL:", query)
+
     return db_query(query)
 
 
@@ -151,7 +165,9 @@ def count_expenses_by_category() -> Dict[str, Any]:
     FROM expenses
     GROUP BY category
     """
-    
+
+    print("SQL:", query)
+
     return db_query(query)
 
 
@@ -167,7 +183,9 @@ def aggregate_with_having(min_total: float) -> Dict[str, Any]:
     GROUP BY category
     HAVING SUM(amount) > {min_total}
     """
-    
+
+    print("SQL:", query)
+
     return db_query(query)
 
 
@@ -182,7 +200,9 @@ def get_expenses_above_average() -> Dict[str, Any]:
     FROM expenses
     WHERE amount > (SELECT AVG(amount) FROM expenses)
     """
-    
+
+    print("SQL:", query)
+
     return db_query(query)
 
 
@@ -204,6 +224,8 @@ def get_expenses_with_cte(min_total: float) -> Dict[str, Any]:
     WHERE total_amount > {min_total}
     """
 
+    print("SQL:", query)
+
     return db_query(query)
 
 
@@ -219,6 +241,8 @@ def get_expenses_with_running_total() -> Dict[str, Any]:
     FROM expenses
     """
 
+    print("SQL:", query)
+
     return db_query(query)
 
 
@@ -229,6 +253,8 @@ def get_distinct_categories() -> Dict[str, Any]:
     Returns a list of distinct expense categories.
     """
     query = "SELECT DISTINCT category FROM expenses"
+
+    print("SQL:", query)
 
     return db_query(query)
 
@@ -247,12 +273,14 @@ def union_expenses_by_categories(
     SELECT * FROM expenses WHERE category = '{category2.value}'
     """
 
+    print("SQL:", query)
+
     return db_query(query)
 
 
 # 20. Full-Text Search: Search expenses by description using a LIKE query
 @tool
-def full_text_search_expenses(search_term: str) -> Dict[str, Any]:
+def partial_text_search_expenses(search_term: str) -> Dict[str, Any]:
     """
     Returns expenses where the description matches the search term using a LIKE query.
     """
@@ -261,6 +289,8 @@ def full_text_search_expenses(search_term: str) -> Dict[str, Any]:
     FROM expenses
     WHERE description LIKE '%{search_term}%'
     """
+
+    print("SQL:", query)
 
     return db_query(query)
 
@@ -285,6 +315,8 @@ def advanced_case_expenses() -> Dict[str, Any]:
     FROM expenses
     """
 
+    print("SQL:", query)
+
     return db_query(query)
 
 
@@ -301,6 +333,8 @@ def self_join_previous_day_expenses() -> Dict[str, Any]:
     LEFT JOIN expenses b
       ON b.date = a.date - INTERVAL '1 day'
     """
+
+    print("SQL:", query)
 
     return db_query(query)
 
@@ -341,7 +375,7 @@ tools = [
     get_expenses_with_running_total,
     get_distinct_categories,
     union_expenses_by_categories,
-    full_text_search_expenses,
+    partial_text_search_expenses,
     advanced_case_expenses,
     self_join_previous_day_expenses,
     greetings,

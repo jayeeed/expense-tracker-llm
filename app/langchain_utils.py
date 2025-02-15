@@ -2,8 +2,6 @@ import os
 import re
 import uuid
 from datetime import datetime
-
-import groq
 from app.tool_factory import tools
 from app.db_utils import save_to_db
 from langsmith import traceable
@@ -87,15 +85,15 @@ def process_image_request(image_content: str, image_url: str):
 def process_text_request(user_input: str):
     """Handle text-based expense input."""
     current_date = datetime.now().strftime("%Y-%m-%d")
+
     user_input_with_date = (
-        f"{user_input}"
-        "\n# Current Date:"
-        f"{current_date}"
-        "\nInstructions:"
+        f"User Input: {user_input}"
+        f"\n# Note: Current Date is: {current_date}"
+        "\n# Instructions: (Don't use these instructions only for reference)"
+        "\n- Use Current Date as date reference."
         "\n- Week start from Sunday"
         "\n- Weekend is Friday and Saturday"
-        "\n- Don't use these instructions, this is only for reference"
-        "\n- Also ignore meaningless/irrelevant words for expense"
+        "\n- Disregard insignificant/irrelevant terms related to expenses."
     )
 
     intent_response = llm_with_tools.invoke(user_input_with_date)
@@ -130,12 +128,13 @@ def process_text_request(user_input: str):
     if len(results) == 1:
         return results[0]
     else:
-        results = llm.invoke(
-            f"Merge all tool calls into single meaningful concise response mentioning all tool calls: \n {results} \n"
-            "\nInstructions:"
-            "\n- Don't use these instructions, this is only for reference"
-            "\n- Also ignore meaningless/irrelevant words for expense"
+        multi_prompt = (
+            f"Result:\n {results} \n"
+            "\n# Instructions: (Don't use these instructions only for reference)"
+            "\n- Merge all tool calls into single meaningful concise response."
+            "\n- Disregard insignificant/irrelevant terms related to expenses."
         )
+        results = llm.invoke(multi_prompt)
         return {"intent": "multi", "result": results.content}
 
 
@@ -153,15 +152,15 @@ def process_search_request(intent: str, user_input: str, parsed_input: dict):
     if not result_response:
         return "No results found."
 
-    result = llm.invoke(
-        f"Explain concisely in general language: \n {result_response} \n"
-        f"\nNote: initial user query: '{user_input}'. \nReponse according to the user input."
-        "# Instructions:\n"
-        "- amount and category must be mentioned \n"
-        "- don't add any instructions to the response \n"
-        "- don't add any irrelevant words to the response\n"
-        "- if multiple tools are called, try to merge them into a single response according to the user intent"
+    final_search_prompt = (
+        f"Result: \n {result_response} \n"
+        f"# Note: initial_user_input: '{user_input}'."
+        "# Instructions: (Explain concisely in general language)"
+        "\n- Final Reponse must be relavant to the initial_user_input."
+        "\n- Disregard insignificant/irrelevant terms related to expenses."
     )
+
+    result = llm.invoke(final_search_prompt)
     result_content = clean_llm_response(result.content)
 
     return result_content.strip()

@@ -2,7 +2,6 @@ import psycopg2
 import os
 import csv
 
-# Get database connection URL from environment variable
 db_uri = os.getenv("POSTGRES_URL")
 if not db_uri:
     raise ValueError("POSTGRES_URL environment variable is not set")
@@ -41,5 +40,4 @@ def ingest_data(csv_file_path):
         print(f"Error occurred: {e}")
 
 
-# Run the function
 ingest_data(csv_file_path)
