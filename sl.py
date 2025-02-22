@@ -4,9 +4,6 @@ import json
 from io import BytesIO
 from PIL import Image
 from app.langchain_utils import route_request
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 def process_image(image_file, max_size=(800, 800)):
@@ -51,21 +48,19 @@ if user_message:
     # Get the assistant response by calling route_request
     response = route_request(user_input=user_message, image_content=image_content)
 
-    # Attempt to extract the "result" field or check for "id" in the response if it's JSON-like
+    # Attempt to extract the "result" field if the response is JSON-like
     try:
         if isinstance(response, dict):
-            if "id" in response:
-                result_text = "Record added successfully"
-            else:
-                result_text = response.get("result", response)
+            result_text = response.get("result", response)
         else:
             parsed = json.loads(response)
-            if "id" in parsed:
-                result_text = "Record added successfully"
-            else:
-                result_text = parsed.get("result", response)
+            result_text = parsed.get("result", response)
     except Exception:
         result_text = response
+
+    # If the result is a dictionary with an "id", override the output
+    if isinstance(result_text, dict) and "id" in result_text:
+        result_text = "☑️ Record added successfully."
 
     st.session_state["messages"].append({"role": "assistant", "message": result_text})
 

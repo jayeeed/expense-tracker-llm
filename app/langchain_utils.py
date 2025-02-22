@@ -93,6 +93,7 @@ def process_text_request(user_input: str):
         "\n- Use Current Date as date reference."
         "\n- Week start from Sunday"
         "\n- Weekend is Friday and Saturday"
+        "\n- If intent is detected as 'create_expense' but amount is not detected, don't call the tool."
         "\n- Disregard insignificant/irrelevant terms related to expenses."
     )
 
@@ -156,26 +157,28 @@ def process_search_request(intent: str, user_input: str, parsed_input: dict):
         f"Result: \n {result_response} \n"
         f"# Note: initial_user_input: '{user_input}'."
         "# Instructions: (Explain concisely in general language)"
-        "\n- Final Reponse must be relavant to the initial_user_input."
+        "\n- Final Reponse must be relavant to the 'initial_user_input'."
+        "\n- Keep the final response as concise as possible."
         "\n- Disregard insignificant/irrelevant terms related to expenses."
     )
 
     result = llm.invoke(final_search_prompt)
-    result_content = clean_llm_response(result.content)
+    # result_content = clean_llm_response(result.content)
 
-    return result_content.strip()
+    # return result_content.strip()
+    return result
 
 
-def clean_llm_response(response: str):
-    """Remove unwanted XML tags from LLM response."""
+# def clean_llm_response(response: str):
+#     """Remove unwanted XML tags from LLM response."""
 
-    start_idx = response.find("<think>")
-    end_idx = response.find("</think>") + len("</think>")
+#     start_idx = response.find("<think>")
+#     end_idx = response.find("</think>") + len("</think>")
 
-    if start_idx != -1 and end_idx != -1:
-        response = response[:start_idx] + response[end_idx:]
+#     if start_idx != -1 and end_idx != -1:
+#         response = response[:start_idx] + response[end_idx:]
 
-    return response
+#     return response
 
 
 @traceable
