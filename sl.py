@@ -4,6 +4,9 @@ import json
 from io import BytesIO
 from PIL import Image
 from app.langchain_utils import route_request
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def process_image(image_file, max_size=(800, 800)):
