@@ -163,10 +163,11 @@ def process_search_request(intent: str, user_input: str, parsed_input: dict):
     )
 
     result = llm.invoke(final_search_prompt)
-    # result_content = clean_llm_response(result.content)
 
+    # result_content = clean_llm_response(result.content)
     # return result_content.strip()
-    return result
+
+    return result.content
 
 
 # def clean_llm_response(response: str):
